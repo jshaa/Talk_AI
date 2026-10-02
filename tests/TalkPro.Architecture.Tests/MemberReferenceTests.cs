@@ -54,6 +54,31 @@ public sealed class MemberReferenceTests
         Assert.DoesNotContain(MemberReferences(assembly), m => m is { Type: "System.Text.Encoding", Name: "RegisterProvider" });
     }
 
+    /// <summary>Adapters and the driver are pure: no console/debug/trace output and no logging framework (Step: privacy).</summary>
+    [Fact]
+    public void IngestionNeverLogsOrWritesDiagnostics()
+    {
+        var assembly = Assembly.Load(new AssemblyName("TalkPro.Ingestion"));
+
+        Assert.DoesNotContain(assembly.GetReferencedAssemblies(), r => r.Name!.StartsWith("Microsoft.Extensions.Logging", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            MemberReferences("TalkPro.Ingestion"),
+            m => m.Type is "System.Console" or "System.Diagnostics.Debug" or "System.Diagnostics.Trace" or "System.Diagnostics.EventLog");
+    }
+
+    /// <summary>Encoding and line splitting stay in the driver; nothing in Ingestion touches files, directories or streams.</summary>
+    [Fact]
+    public void IngestionDoesNoFileOrStreamIo()
+    {
+        string[] ioTypes =
+        [
+            "System.IO.File", "System.IO.Directory", "System.IO.FileStream", "System.IO.FileInfo", "System.IO.DirectoryInfo",
+            "System.IO.StreamReader", "System.IO.StreamWriter", "System.IO.TextReader", "System.IO.Stream",
+        ];
+
+        Assert.DoesNotContain(MemberReferences("TalkPro.Ingestion"), m => ioTypes.Contains(m.Type, StringComparer.Ordinal));
+    }
+
     private static List<(string Type, string Name)> MemberReferences(string assemblyName)
     {
         var location = Assembly.Load(new AssemblyName(assemblyName)).Location;

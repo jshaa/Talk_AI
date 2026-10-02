@@ -11,8 +11,9 @@ public sealed partial class SyntheticWindowsAdapter() : SyntheticAdapterBase(Id,
     protected override bool IsReserved(string line) =>
         line.StartsWith('[') || line.StartsWith("* [", StringComparison.Ordinal) || line.StartsWith("=== ", StringComparison.Ordinal);
 
+    /// <summary>For detection a record also needs a well-formed <c>HH:mm</c> time (real layouts use other clocks).</summary>
     protected override bool IsCompleteRecord(string line) =>
-        DateMarker().IsMatch(line) || MessageLine().IsMatch(line) || SystemLine().IsMatch(line);
+        DateMarker().IsMatch(line) || HasClockTime(MessageLine().Match(line)) || HasClockTime(SystemLine().Match(line));
 
     protected override LineStep ParseRecord(ParserState state, string line)
     {
@@ -102,6 +103,12 @@ public sealed partial class SyntheticWindowsAdapter() : SyntheticAdapterBase(Id,
 
         localTime = date.ToDateTime(new TimeOnly(hour, minute));
         return ParseIssue.None;
+    }
+
+    private static bool HasClockTime(Match match)
+    {
+        var time = match.Groups["time"].ValueSpan;
+        return match.Success && time.Length == 5 && time[2] == ':' && IsDigits(time[..2]) && IsDigits(time[3..]);
     }
 
     private static bool IsDigits(ReadOnlySpan<char> value)

@@ -25,7 +25,7 @@ Gate: line parse success ≥ 99 % on the synthetic golden corpus. **Met: 100 %**
 | 1.2 | `IChatFormatAdapter`, `LineParseResult`, `ParserState` (+ `AdapterState`, `PendingEntry`, `ParsedEntry`, `ParseContext`) in Core; contract tests in `TalkPro.Core.Tests` | ✅ |
 | 1.3 | `EncodingDetector` (BOM → strict UTF-8 → strict CP949, no global provider registration) + `LineSplitter` | ✅ |
 | 1.4 | `FormatDetector` (content-based, head lines across adapters, tie/low confidence → unknown) | ✅ |
-| 1.5 | Synthetic adapters W1/A1/I1 (test-only, DD-012) ✅ · real `WindowsKoAdapter`, `AndroidKoAdapter`, `IosKoAdapter` ⬜ (need validation against real exports kept outside the repository) | 🔄 |
+| 1.5 | Synthetic adapters W1/A1/I1 (test-only, DD-012) ✅ · real Korean-UI adapters `WindowsChatFormatAdapter` (12h + 24h), `AndroidChatFormatAdapter`, `IosChatFormatAdapter` (dotted + time-only) from public structural evidence, hand-written fixtures, collision tests, opt-in local real-export validation ✅ (DD-014, `REAL_FORMATS.md`) · **validation against real exports and production registration ⬜** · English UI / macOS / CSV ⬜ | 🔄 |
 | 1.6 | Single-pass line classification + participant mapping + system join/leave classification ✅ · speaker resolution (nicknames, same-name speakers), media/deleted-message classification, rules as data ⬜ | 🔄 |
 | 1.7 | Golden tests (per file, cross-encoding equality, detection = explicit adapter) ✅ · parse-rate report for real imports ⬜ | 🔄 |
 

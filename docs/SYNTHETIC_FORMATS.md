@@ -76,6 +76,7 @@ Saved: 2026.10.02 14:23:11
 Detection uses content only, never the file name. The first 50 lines are scored; lines the driver would reject are blanked.
 - Exact signature on line 1 → 1.0.
 - Otherwise, if line 1 is another synthetic signature, the header is skipped. Score = 0.5 + 0.4 × (complete records / non-blank body lines), or 0 if there is no record.
+- Without a synthetic signature, the first non-blank line must itself be a complete record, otherwise the score is 0. A W1 record needs an `HH:mm` time. This keeps synthetic adapters from claiming real exports (`REAL_FORMATS.md`).
 - Reserved prefixes are mutually exclusive across W1/A1/I1, so a body line scores for at most one format.
 - The best score wins if it is ≥ 0.5 and not tied.
 

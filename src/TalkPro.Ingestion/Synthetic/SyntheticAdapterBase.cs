@@ -28,7 +28,11 @@ public abstract class SyntheticAdapterBase : IChatFormatAdapter
 
     public ChatFormatId FormatId { get; }
 
-    /// <summary>1.0 for this format's signature; otherwise 0.5–0.9 by the share of body lines that are full records.</summary>
+    /// <summary>
+    /// 1.0 for this format's signature; otherwise 0.5–0.9 by the share of body lines that are full records.
+    /// Without a synthetic signature the first non-blank line must itself be a full record, so files
+    /// with any other header (e.g. real exports) are never claimed.
+    /// </summary>
     public double Detect(IReadOnlyList<string> sampleLines)
     {
         ArgumentNullException.ThrowIfNull(sampleLines);
@@ -61,9 +65,14 @@ public abstract class SyntheticAdapterBase : IChatFormatAdapter
             }
 
             nonBlank++;
-            if (IsReserved(line) && IsCompleteRecord(line))
+            var isRecord = IsReserved(line) && IsCompleteRecord(line);
+            if (isRecord)
             {
                 records++;
+            }
+            else if (start == 0 && nonBlank == 1)
+            {
+                return 0;
             }
         }
 

@@ -52,7 +52,7 @@
 - CP949 is obtained from `CodePagesEncodingProvider.Instance.GetEncoding(949, ExceptionFallback, ExceptionFallback)` (in-box since .NET 5). `Encoding.RegisterProvider` is never called, so there is no process-wide side effect. This holds in both Ingestion and the SampleGenerator. Tests check it from assembly metadata (no `RegisterProvider` reference in any TalkPro assembly) and at runtime (`Encoding.GetEncoding(949)` still fails after decoding CP949).
 - Known limitation: .NET's CP949 table maps a few non-text bytes (e.g. `0xFF`) without error, so some binary input decodes "successfully". Format detection then rejects it as `UnknownFormat`.
 
-**DD-012 Synthetic formats first.** Golden data uses three explicitly synthetic formats (`docs/SYNTHETIC_FORMATS.md`), not guessed private messenger formats. Adapters for real exports are added only after validation against real files kept in an encrypted local folder outside the repository. Synthetic adapters (`TalkPro.Ingestion.Synthetic`) are not registered in the production DI container (tested in `CompositionTests`).
+**DD-012 Synthetic formats first.** Golden data uses three explicitly synthetic formats (`docs/SYNTHETIC_FORMATS.md`), not guessed private messenger formats. Real-format adapters may be implemented from documented structural evidence (DD-014), but are **registered in the production container only after validation against real files** kept in a local folder outside the repository (opt-in `LocalPrivateValidation` test). Synthetic adapters (`TalkPro.Ingestion.Synthetic`) are not registered in the production DI container (tested in `CompositionTests`).
 
 **DD-013 SampleGenerator is an independent oracle.**
 - `tools/SampleGenerator` references no TalkPro project. Expected results (line outcomes, issues, entries, statistics) are derived from the logical corpus and the format specification, not from parser code.
@@ -61,6 +61,16 @@
 - Output is deterministic: a fixed SplitMix64 PRNG (default seed `20261002`), fixed timestamps, invariant formatting and `\n` in the manifest. Building the set is pure (in memory), so tests regenerate it and compare it byte for byte with the checked-in files.
 - Tests require the Golden folder to contain exactly the manifest's files. This stops a real export from being dropped into the git-allowed Golden path.
 - Corpus errors fail generation, for example an orphan line inside an open message, a continuation line with a reserved record prefix, or CP949 text that is not representable. A sample never claims something it does not test.
+
+**DD-014 Real-format adapters (Phase 1.5) — Korean UI only, evidence-labelled, not yet registered.**
+- **Scope**: Windows PC, Android and iOS exports with Korean UI (`kakaotalk.{windows,android,ios}.ko.v1`, internal ids only), in `TalkPro.Ingestion.RealFormats`. They are clearly separate from the synthetic adapters (own base class `RealExportAdapterBase`, no shared rules). English UI, macOS and CSV exports are not supported and give `UnknownFormat`.
+- **Evidence**: no real export was available. Grammars come from public, anonymised third-party parsers and fixtures (zeikar/kakaotalk-viewer, uoneway/kakaotalk_msg_preprocessor) and the report's §6.1 table. `docs/REAL_FORMATS.md` gives the evidence level of every construct. Single-source constructs are implemented only when they are structurally unambiguous (Windows 24-hour, iOS time-only layout, empty-sender notices). Nothing is described as validated.
+- **No reserved prefixes**: unlike the synthetic formats, a real line is a record only if it matches a complete record pattern. Everything else is message text, because real text may start with `[`, digits or dates. Malformed = complete-shape record with impossible values.
+- **Classification boundary for Phase 1.6**: user message, system line (empty sender / mobile record without ` : `; `Leave`/`Invite` only for exact messenger-generated endings), metadata (header, date lines), malformed, orphan. Media/emoticon/deleted placeholders and Windows untimed notices are **not** classified because the grammar cannot tell them from typed text. No Core contract or enum change was needed; there is no adapter-specific state (the common date context suffices).
+- **Detection**: header (title + `저장한 날짜 : `) **and** at least one complete record of the layout. Header alone → 0.3 (below threshold).
+- **Synthetic detection tightened** (no change to golden results): without its signature, a synthetic adapter needs the first non-blank line to be one of its records, and W1 records need `HH:mm` times. Before this, W1 claimed real Windows lines such as `[UserA] [오후 3:15] …`.
+- **Fixtures** are hand-written string literals (`RealFormatFixtures.cs`) with per-line expectations, not `.txt` files and not generated. **Local validation** is an opt-in, skipped-by-default test driven by `TALKPRO_REAL_EXPORTS_DIR` that prints no paths, names or text.
+- **Registration**: not registered in `AddTalkProIngestion` until the local validation passes on real exports (DD-012). `CompositionTests` still asserts that no adapter is registered.
 
 ## Open issues
 
