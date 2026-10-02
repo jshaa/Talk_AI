@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Synthetic golden-data generator (DD-013).
+    Independent oracle: must not reference any TalkPro project, must not use the network,
+    must not read input files. Enforced by TalkPro.Architecture.Tests.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>TalkPro.SampleGenerator</AssemblyName>
+    <RootNamespace>TalkPro.Tools.SampleGenerator</RootNamespace>
+  </PropertyGroup>
+</Project>

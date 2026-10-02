@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
+  <PropertyGroup>
+    <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+    <OldToolsVersion>2.0</OldToolsVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/TalkPro.Core/TalkPro.Core.csproj" />
+    <ProjectReference Include="../../src/TalkPro.Ingestion/TalkPro.Ingestion.csproj" />
+    <ProjectReference Include="../../src/TalkPro.Privacy/TalkPro.Privacy.csproj" />
+    <ProjectReference Include="../../src/TalkPro.Memory/TalkPro.Memory.csproj" />
+    <ProjectReference Include="../../src/TalkPro.Persona/TalkPro.Persona.csproj" />
+    <ProjectReference Include="../../src/TalkPro.Llm/TalkPro.Llm.csproj" />
+    <ProjectReference Include="../../src/TalkPro.Consent/TalkPro.Consent.csproj" />
+    <ProjectReference Include="../../src/TalkPro.Security/TalkPro.Security.csproj" />
+    <ProjectReference Include="../../src/TalkPro.Infrastructure/TalkPro.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,7 @@
+* text=auto eol=crlf
+
+# Golden parser fixtures must keep exact bytes (BOM, CRLF/LF, CP949) for encoding tests.
+tests/**/Golden/** -text -diff
+
+*.png binary
+*.ico binary

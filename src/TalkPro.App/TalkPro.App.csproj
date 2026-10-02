@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- WPF shell and composition root. The only project allowed to reference every module. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>TalkPro</AssemblyName>
+    <RootNamespace>TalkPro.App</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TalkPro.Core\TalkPro.Core.csproj" />
+    <ProjectReference Include="..\TalkPro.Ingestion\TalkPro.Ingestion.csproj" />
+    <ProjectReference Include="..\TalkPro.Privacy\TalkPro.Privacy.csproj" />
+    <ProjectReference Include="..\TalkPro.Memory\TalkPro.Memory.csproj" />
+    <ProjectReference Include="..\TalkPro.Persona\TalkPro.Persona.csproj" />
+    <ProjectReference Include="..\TalkPro.Llm\TalkPro.Llm.csproj" />
+    <ProjectReference Include="..\TalkPro.Consent\TalkPro.Consent.csproj" />
+    <ProjectReference Include="..\TalkPro.Security\TalkPro.Security.csproj" />
+    <ProjectReference Include="..\TalkPro.Infrastructure\TalkPro.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+</Project>
