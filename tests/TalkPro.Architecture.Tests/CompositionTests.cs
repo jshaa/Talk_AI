@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TalkPro.Consent;
+using TalkPro.Core.Parsing;
 using TalkPro.Infrastructure;
 using TalkPro.Infrastructure.Logging;
 using TalkPro.Infrastructure.Storage;
@@ -34,6 +35,15 @@ public sealed class CompositionTests : IDisposable
 
         Assert.Single(providers);
         Assert.IsType<ContentFreeLoggerProvider>(providers[0]);
+    }
+
+    [Fact]
+    public void SyntheticTestAdaptersAreNotRegistered()
+    {
+        using var provider = BuildProvider();
+
+        // DD-012: only adapters validated against real exports may ever be registered.
+        Assert.Empty(provider.GetServices<IChatFormatAdapter>());
     }
 
     public void Dispose()

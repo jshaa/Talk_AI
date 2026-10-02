@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/TalkPro.Core/TalkPro.Core.csproj" />
+    <ProjectReference Include="../../src/TalkPro.Ingestion/TalkPro.Ingestion.csproj" />
     <ProjectReference Include="../../src/TalkPro.Privacy/TalkPro.Privacy.csproj" />
     <ProjectReference Include="../../src/TalkPro.Infrastructure/TalkPro.Infrastructure.csproj" />
   </ItemGroup>

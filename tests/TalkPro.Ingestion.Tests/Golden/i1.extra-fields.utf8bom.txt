@@ -1,0 +1,10 @@
+﻿TalkPro Synthetic Export (I1)
+Room: 합성 테스트방 01
+Saved: 2026.10.02 14:23:11
+Export-Option: synthetic-extra-field=1
+Unknown-Header: 합성 추가 헤더
+
+2026.10.01 19:00:00	UserA	합성 | 추가 | 필드
+2026.10.01 19:01:00	User B	합성	추가	탭 필드
+2026.10.01 19:02:00	합성사용자 C	[추가] 괄호 필드 [15:15]
+2026.10.01 19:03:00	UserA	* [별표] 필드 | 혼합 	 구분자

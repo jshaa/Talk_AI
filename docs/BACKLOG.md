@@ -17,20 +17,20 @@ Status: ✅ done · 🔄 in progress · ⬜ todo · ⛔ blocked (see `DESIGN_DEC
 | 0.9 | WPF shell (local-only + generative-AI notices) | ✅ |
 | 0.10 | Architecture tests (dependency direction, network APIs only in Llm) | ✅ |
 
-## Phase 1 — Synthetic Data & Import ⬜
-Gate: line parse success ≥ 99 % on the synthetic golden corpus.
-| # | Item |
-|---|---|
-| 1.1 | `tools/SampleGenerator`: synthetic exports (Windows/Android/iOS, KO), UTF-8 / UTF-8 BOM / CP949, multiline, emoji, system/deleted messages, malformed lines, date rollover, special-character names, same-name speakers |
-| 1.2 | `IChatFormatAdapter`, `LineParseResult`, `ParserState` in Core |
-| 1.3 | `EncodingDetector` (BOM → strict UTF-8 → CP949) |
-| 1.4 | `FormatDetector` (score head lines across adapters) |
-| 1.5 | `WindowsKoAdapter`, `AndroidKoAdapter`, `IosKoAdapter` (regex timeouts, InvariantCulture) |
-| 1.6 | Two-pass parser: line classification → speaker resolution → system/media classification (rules as data) |
-| 1.7 | Golden tests + parse-rate report |
+## Phase 1 — Synthetic Data & Import 🔄
+Gate: line parse success ≥ 99 % on the synthetic golden corpus. **Met: 100 %** (2,333 lines in 163 golden files, `PhaseOneGateLineClassificationRate`).
+| # | Item | Status |
+|---|---|---|
+| 1.1 | `tools/SampleGenerator`: 21 synthetic cases × W1/A1/I1 × UTF-8 / UTF-8 BOM / CP949 (163 files + `manifest.json` with expected results). Covers: empty and header-only files, single/multi participant, multiline, CRLF/LF/no final newline, Korean/English/digits/symbols/emoji/supplementary/mixed scripts, CP949-only Hangul, empty/whitespace/control-character messages, same/out-of-order timestamps, day/month/year/leap-day boundaries, system join/leave, names with spaces/symbols/119 chars, date/header/separator-like text, malformed/unknown/orphan lines, truncated last record, extra fields, duplicates, 100,001-char line, 1,000-char name, NUL, invalid/out-of-range dates, unsupported version. Deterministic (seeded SplitMix64), byte-for-byte verified against the checked-in files. | ✅ |
+| 1.2 | `IChatFormatAdapter`, `LineParseResult`, `ParserState` (+ `AdapterState`, `PendingEntry`, `ParsedEntry`, `ParseContext`) in Core; contract tests in `TalkPro.Core.Tests` | ✅ |
+| 1.3 | `EncodingDetector` (BOM → strict UTF-8 → strict CP949, no global provider registration) + `LineSplitter` | ✅ |
+| 1.4 | `FormatDetector` (content-based, head lines across adapters, tie/low confidence → unknown) | ✅ |
+| 1.5 | Synthetic adapters W1/A1/I1 (test-only, DD-012) ✅ · real `WindowsKoAdapter`, `AndroidKoAdapter`, `IosKoAdapter` ⬜ (need validation against real exports kept outside the repository) | 🔄 |
+| 1.6 | Single-pass line classification + participant mapping + system join/leave classification ✅ · speaker resolution (nicknames, same-name speakers), media/deleted-message classification, rules as data ⬜ | 🔄 |
+| 1.7 | Golden tests (per file, cross-encoding equality, detection = explicit adapter) ✅ · parse-rate report for real imports ⬜ | 🔄 |
 
-## Phase 2 — Secure Vault ⛔ (storage engine decision pending: DD-007)
-Dataset model · KeyManager (DPAPI KEK, per-dataset DEK) · AES-256-GCM files · encrypted DB · vault repository · crypto-shredder · Delete All + residual scan tests.
+## Phase 2 — Secure Vault ⬜ (storage engine decided: DD-007 — not started)
+Dataset model · KeyManager (DPAPI-protected per-dataset DEK) · AES-256-GCM encrypted snapshot of in-memory SQLite/FTS5 · no plaintext DB/WAL/SHM/journal/temp files on disk · vault repository · crypto-shredder (DEK destruction) · Delete All + residual scan tests.
 
 ## Phase 3 — Privacy ⬜
 `PiiFinding` · L1 regex (checksums: RRN, Luhn) · L2 detector abstraction (participant dictionary + honorifics) · L3 interface · `PrivacyDecision` · `RedactionPolicy` (purpose-specific views) · Privacy Review UI · owner selection + participant attestation · `ConsentManifest` (MVP1 states).

@@ -14,5 +14,8 @@ public sealed record ParsedEntry(
     MessageKind Kind,
     string Text)
 {
+    /// <summary>Event classified by the adapter for <see cref="MessageKind.System"/> entries.</summary>
+    public SystemEventType SystemEvent { get; init; } = SystemEventType.None;
+
     public override string ToString() => $"ParsedEntry {{ Lines = {StartLine}-{EndLine}, Kind = {Kind} }}";
 }

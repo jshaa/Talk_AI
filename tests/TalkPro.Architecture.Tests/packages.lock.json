@@ -204,6 +204,9 @@
           "TalkPro.Core": "[1.0.0, )"
         }
       },
+      "TalkPro.SampleGenerator": {
+        "type": "Project"
+      },
       "talkpro.security": {
         "type": "Project",
         "dependencies": {

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Tests of the synthetic golden-data generator. Must not reference parser code (DD-013). -->
+  <ItemGroup>
+    <ProjectReference Include="../../tools/SampleGenerator/SampleGenerator.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/RepositoryPaths.cs" Link="Shared/RepositoryPaths.cs" />
+  </ItemGroup>
+</Project>

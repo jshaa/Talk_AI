@@ -1,0 +1,7 @@
+TalkPro Synthetic Export (I1)
+Room: 합성 테스트방 01
+Saved: 2026.10.02 14:23:11
+
+2026.10.01 09:00:01	SyntheticPerson01	합성 테스트 메시지 001
+2026.10.01 09:01:02	SyntheticPerson01	합성 테스트 메시지 002
+2026.10.01 09:02:03	SyntheticPerson01	Synthetic test message 003

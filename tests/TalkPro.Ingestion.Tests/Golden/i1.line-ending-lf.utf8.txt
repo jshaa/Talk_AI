@@ -1,0 +1,9 @@
+TalkPro Synthetic Export (I1)
+Room: 합성 테스트방 01
+Saved: 2026.10.02 14:23:11
+
+2026.10.01 11:00:00	UserA	LF 줄바꿈 메시지 001
+2026.10.01 11:01:00	User B	LF 여러 줄 첫 줄
+LF 여러 줄 둘째 줄
+2026.10.01 11:02:00	*	SyntheticPerson01 님이 들어왔습니다.
+2026.10.01 11:03:00	SyntheticPerson01	LF 줄바꿈 메시지 003

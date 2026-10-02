@@ -162,6 +162,13 @@
           "TalkPro.Security": "[1.0.0, )"
         }
       },
+      "talkpro.ingestion": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.12, )",
+          "TalkPro.Core": "[1.0.0, )"
+        }
+      },
       "talkpro.privacy": {
         "type": "Project",
         "dependencies": {

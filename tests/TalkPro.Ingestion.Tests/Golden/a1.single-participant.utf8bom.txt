@@ -1,0 +1,7 @@
+﻿TalkPro Synthetic Export (A1)
+Room: 합성 테스트방 01
+Saved: 2026-10-02 오후 2:23
+
+2026-10-01 오전 9:00 | SyntheticPerson01 | 합성 테스트 메시지 001
+2026-10-01 오전 9:01 | SyntheticPerson01 | 합성 테스트 메시지 002
+2026-10-01 오전 9:02 | SyntheticPerson01 | Synthetic test message 003

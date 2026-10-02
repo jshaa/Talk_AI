@@ -1,0 +1,11 @@
+﻿TalkPro Synthetic Export (W1)
+Room: 합성 테스트방 01
+Saved: 2026-10-02 14:23:11
+
+=== 2026-10-01 (Thu) ===
+[User B] [17:00] 이름에 공백이 있는 참가자
+[Synth#Person_04 (테스트)] [17:01] 이름에 특수문자가 있는 참가자
+[합성사용자 C] [17:02] 한글 이름 참가자
+[SyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongName] [17:03] 긴 이름 참가자 (119자)
+[SyntheticPerson01] [17:04] 일반 이름 참가자
+[Synth#Person_04 (테스트)] [17:05] 같은 참가자의 두 번째 메시지

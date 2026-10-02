@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Parser contract tests against Core only (adapter independence: no Ingestion reference). -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/TalkPro.Core/TalkPro.Core.csproj" />
+  </ItemGroup>
+</Project>

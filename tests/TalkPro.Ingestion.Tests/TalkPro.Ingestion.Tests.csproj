@@ -11,4 +11,7 @@
     <ProjectReference Include="../../src/TalkPro.Core/TalkPro.Core.csproj" />
     <ProjectReference Include="../../src/TalkPro.Ingestion/TalkPro.Ingestion.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/RepositoryPaths.cs" Link="Shared/RepositoryPaths.cs" />
+  </ItemGroup>
 </Project>

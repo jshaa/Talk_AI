@@ -1,0 +1,55 @@
+TalkPro Synthetic Export (W1)
+Room: 합성 테스트방 01
+Saved: 2026-10-02 14:23:11
+
+=== 2026-10-01 (Thu) ===
+[User B] [23:30] 합성 테스트 메시지 001 오늘 synthetic
+합성 synthetic alpha ㅎㅎ 확인 7
+[Synth#Person_04 (테스트)] [23:31] 합성 테스트 메시지 002 sample 내일
+메시지
+ok ok ㅎㅎ
+[User B] [23:32] 합성 테스트 메시지 003 데이터 메시지
+[User B] [23:35] 합성 테스트 메시지 004 오늘 확인 ? 예정 sample ?
+[UserA] [23:38] 합성 테스트 메시지 005 ㅋㅋ 확인 합성
+[UserA] [23:41] 합성 테스트 메시지 006 gamma 내일 완료 beta alpha
+[합성사용자 C] [23:45] 합성 테스트 메시지 007 ok 내일 gamma 오늘 샘플
+[SyntheticPerson01] [23:48] 합성 테스트 메시지 008 ok ㅎㅎ ㅎㅎ !
+[User B] [23:48] 합성 테스트 메시지 009 오늘 ㅋㅋ 완료 예정 7 alpha ok
+[SyntheticPerson01] [23:51] 합성 테스트 메시지 010 오늘 완료 sample 데이터 예정 ㅎㅎ 확인
+[UserA] [23:55] 합성 테스트 메시지 011 beta 완료 샘플 ㅋㅋ 42 내일
+[UserA] [23:58] 합성 테스트 메시지 012 오늘 alpha 샘플 7 내일 ok
+[SyntheticPerson01] [23:58] 합성 테스트 메시지 013 완료 오늘 ㅋㅋ 데이터 ㅎㅎ
+샘플
+ㅋㅋ synthetic 내일 완료 테스트
+[합성사용자 C] [23:58] 합성 테스트 메시지 014 gamma 예정 테스트 합성 메시지
+=== 2026-10-02 (Fri) ===
+[SyntheticPerson01] [00:01] 합성 테스트 메시지 015 확인 ㅎㅎ 확인
+[SyntheticPerson01] [00:02] 합성 테스트 메시지 016 7 42 synthetic ok ㅎㅎ
+[UserA] [00:06] 합성 테스트 메시지 017 synthetic 확인 샘플 데이터
+gamma
+[UserA] [00:10] 합성 테스트 메시지 018 ㅋㅋ sample
+내일 테스트 테스트 sample ㅎㅎ
+synthetic synthetic
+[SyntheticPerson01] [00:11] 합성 테스트 메시지 019 ㅋㅋ alpha beta 완료 42 ?
+[SyntheticPerson01] [00:14] 합성 테스트 메시지 020 7 내일
+[Synth#Person_04 (테스트)] [00:15] 합성 테스트 메시지 021 확인 sample 확인 오늘 ? 오늘 7
+[SyntheticPerson01] [00:16] 합성 테스트 메시지 022 예정 beta 오늘 테스트 내일 예정 오늘
+[SyntheticPerson01] [00:17] 합성 테스트 메시지 023 synthetic synthetic ㅎㅎ
+[UserA] [00:19] 합성 테스트 메시지 024 ? alpha 예정
+[합성사용자 C] [00:21] 합성 테스트 메시지 025 ? 데이터 synthetic 합성
+[SyntheticPerson01] [00:22] 합성 테스트 메시지 026 beta 샘플 sample synthetic ㅋㅋ alpha
+[SyntheticPerson01] [00:23] 합성 테스트 메시지 027 7 42 ok sample 완료 확인 샘플
+[합성사용자 C] [00:24] 합성 테스트 메시지 028 ㅋㅋ 합성 42
+[Synth#Person_04 (테스트)] [00:28] 합성 테스트 메시지 029 테스트 sample sample
+[Synth#Person_04 (테스트)] [00:28] 합성 테스트 메시지 030 확인 42 ㅋㅋ 완료
+[합성사용자 C] [00:30] 합성 테스트 메시지 031 ok 7 ㅋㅋ 내일 gamma ok 내일
+[합성사용자 C] [00:33] 합성 테스트 메시지 032 테스트 synthetic 샘플 완료
+[UserA] [00:34] 합성 테스트 메시지 033 synthetic 42 7 오늘 테스트 ok
+42 완료 alpha alpha synthetic
+[Synth#Person_04 (테스트)] [00:36] 합성 테스트 메시지 034 합성 sample 데이터 ㅎㅎ gamma ㅎㅎ 오늘
+[SyntheticPerson01] [00:38] 합성 테스트 메시지 035 42 7 데이터 ok 샘플
+[UserA] [00:39] 합성 테스트 메시지 036 gamma ok ! 테스트 gamma 합성
+[SyntheticPerson01] [00:43] 합성 테스트 메시지 037 gamma 내일
+[합성사용자 C] [00:45] 합성 테스트 메시지 038 확인 ㅎㅎ 확인 메시지
+[UserA] [00:49] 합성 테스트 메시지 039 7 합성 확인 메시지 ㅎㅎ beta ?
+[합성사용자 C] [00:50] 합성 테스트 메시지 040 완료 synthetic 합성 데이터

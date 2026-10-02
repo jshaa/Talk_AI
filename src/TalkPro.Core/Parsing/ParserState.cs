@@ -23,10 +23,11 @@ public sealed record PendingEntry(int StartLine, int EndLine, DateTimeOffset Tim
 {
     public override string ToString() => $"PendingEntry {{ Lines = {StartLine}-{EndLine}, LineCount = {Lines.Count} }}";
 
+    /// <summary>Joins the lines with <c>\n</c>; trailing blank (empty or whitespace-only) continuation lines are dropped.</summary>
     internal ParsedEntry Complete()
     {
         var lines = Lines;
-        while (lines.Count > 1 && lines[^1].Length == 0)
+        while (lines.Count > 1 && string.IsNullOrWhiteSpace(lines[^1]))
         {
             lines = lines.RemoveAt(lines.Count - 1);
         }
@@ -80,6 +81,9 @@ public sealed record ParserState
 
     public ParserState WithDate(DateOnly date) => this with { CurrentDate = date };
 
+    /// <summary>Drops the date context, e.g. after an invalid date marker.</summary>
+    public ParserState ClearDate() => CurrentDate is null ? this : this with { CurrentDate = null };
+
     public ParserState WithAdapterState(AdapterState adapterState)
     {
         ArgumentNullException.ThrowIfNull(adapterState);
@@ -123,13 +127,16 @@ public sealed record ParserState
     }
 
     /// <summary>Completes the open message (if any) followed by a single-line system entry.</summary>
-    public (ParserState State, ImmutableArray<ParsedEntry> Completed) CompleteSystemEntry(DateTimeOffset timestamp, string text)
+    public (ParserState State, ImmutableArray<ParsedEntry> Completed) CompleteSystemEntry(
+        DateTimeOffset timestamp,
+        string text,
+        SystemEventType systemEvent = SystemEventType.Other)
     {
         ArgumentNullException.ThrowIfNull(text);
         EnsureLineStarted();
 
         var (flushed, completed) = FlushPending();
-        var system = new ParsedEntry(LineNumber, LineNumber, timestamp, SpeakerName: null, MessageKind.System, text);
+        var system = new ParsedEntry(LineNumber, LineNumber, timestamp, SpeakerName: null, MessageKind.System, text) { SystemEvent = systemEvent };
         return (flushed, completed.Add(system));
     }
 

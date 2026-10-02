@@ -17,5 +17,6 @@
     <ProjectReference Include="../../src/TalkPro.Consent/TalkPro.Consent.csproj" />
     <ProjectReference Include="../../src/TalkPro.Security/TalkPro.Security.csproj" />
     <ProjectReference Include="../../src/TalkPro.Infrastructure/TalkPro.Infrastructure.csproj" />
+    <ProjectReference Include="../../tools/SampleGenerator/SampleGenerator.csproj" />
   </ItemGroup>
 </Project>

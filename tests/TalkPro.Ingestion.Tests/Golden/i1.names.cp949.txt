@@ -1,0 +1,10 @@
+TalkPro Synthetic Export (I1)
+Room: 합성 테스트방 01
+Saved: 2026.10.02 14:23:11
+
+2026.10.01 17:00:00	User B	이름에 공백이 있는 참가자
+2026.10.01 17:01:00	Synth#Person_04 (테스트)	이름에 특수문자가 있는 참가자
+2026.10.01 17:02:00	합성사용자 C	한글 이름 참가자
+2026.10.01 17:03:00	SyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongName	긴 이름 참가자 (119자)
+2026.10.01 17:04:00	SyntheticPerson01	일반 이름 참가자
+2026.10.01 17:05:00	Synth#Person_04 (테스트)	같은 참가자의 두 번째 메시지
