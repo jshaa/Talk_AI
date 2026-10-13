@@ -1,0 +1,29 @@
+{
+  "name": "talkpro-mimic",
+  "version": "0.1.0",
+  "description": "상대방 말투를 흉내 내는 기기 안 AI (웹/PWA + Android)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host",
+    "test": "vitest run",
+    "android:sync": "npm run build && cap sync android",
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3",
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.4"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@wllama/wllama": "3.8.1",
+    "@wllama/wllama-compat": "3.8.1"
+  },
+  "private": true,
+  "type": "module"
+}

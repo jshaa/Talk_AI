@@ -1,0 +1,84 @@
+# 말투 AI (apps/mimic + training): tests, Android debug APK, and the web/PWA on GitHub Pages.
+name: mimic
+
+on:
+  push:
+    paths: ['apps/mimic/**', 'training/**', '.github/workflows/mimic.yml']
+  pull_request:
+    paths: ['apps/mimic/**', 'training/**', '.github/workflows/mimic.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mimic-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: apps/mimic
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mimic/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm test
+      - name: Python/TypeScript parity (training/prepare_kakao.py)
+        working-directory: training
+        run: python test_prepare_kakao.py
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: apps/mimic/dist
+
+  android:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mimic/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - run: npm ci
+      - run: npm run android:sync
+      - name: Build debug APK
+        working-directory: apps/mimic/android
+        run: ./gradlew --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: maltu-ai-debug-apk
+          path: apps/mimic/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
+  pages:
+    # Needs Settings → Pages → Source: "GitHub Actions" (one time).
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

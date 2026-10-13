@@ -321,6 +321,24 @@
   - Media placeholders ("이모티콘", "사진") stay text messages.
   - Android and iPhone export formats are not supported yet.
 
+**DD-028 "말투 AI": imitate a consenting counterpart's style, web/PWA + Android, GGUF on device (owner decision 2026-10-13).**
+- **Scope change**: the owner asked for a model that learns **the other person's** speaking style. This reverses the product-policy exclusion in DD-014 for a separate test app, `apps/mimic`, and does not touch the TalkPro modules (Self Style drafts keep "no counterpart imitation").
+- **Safeguards** (the phishing risk in the report, ch. 3):
+  - Two attestations before analysis: the user took part in the chat and has the imitated person's consent (or is that person), and will not send generated text as if it came from them.
+  - Every reply bubble carries an "AI" tag and the chat shows a permanent "AI가 흉내 낸 … · 실제 … 아님" banner. There is no send or share function.
+  - `persona/safety.ts`: replies about money, transfers, accounts, verification codes, passwords, gift cards, "broken phone / other number", app installs or remote control are never shown. The same patterns cut those replies out of the training data, so a fine-tuned model does not learn them.
+  - Identifiers (phone, account, card, resident id, e-mail, links) are masked; media placeholders dropped; other group members become `참여자N`. Names inside message text are not detected (stated in the UI).
+- **One codebase for both phones**: a Vite/TypeScript web app (PWA). The iPhone uses it from Safari (no Mac, DD-014); Android uses the same build in a Capacitor 8 WebView (`apps/mimic/android`, debug APK from CI).
+- **Runtime**: wllama 3.8.1 (llama.cpp → WebAssembly, MIT) loads GGUF files picked on the device or downloaded once from Hugging Face (https only, CSP-limited to huggingface.co / hf.co, cached in the browser). Safari lacks JSPI, so the bundled `@wllama/wllama-compat` build is used there (no CDN).
+  - Threads need cross-origin isolation: Vite sets COOP/COEP in dev/preview, `public/sw.js` adds them on static hosting (GitHub Pages), and `MainActivity` adds them to the Capacitor local server.
+  - Context 2048 tokens, f16 KV cache (q8_0 needs head size divisible by 32). Over-long prompts are retried once with a smaller history/example budget.
+- **Two modes**: (1) a fine-tuned GGUF with the exact training system prompt (`training/system_prompt.txt` is the single source for the app and the notebook); (2) a base Qwen2.5 Instruct model with numeric style rules plus real reply examples ranked by bigram overlap (no training, needs the analysed chat in memory).
+- **Training** (outside the app, free GPU): the app or `training/prepare_kakao.py` writes chat JSONL with the imitated person as `assistant`; `training/train_persona_unsloth.ipynb` runs Unsloth QLoRA on Kaggle/Colab T4, trains on assistant turns only, exports GGUF Q4_K_M and 512 MB splits. Uploading to Kaggle/Colab sends the chat to that service; the app and notebook say so and the notebook ends with a cleanup step.
+- **Parity**: the TypeScript and Python converters must produce `training/fixtures/expected.jsonl` byte for byte from four synthetic exports (PC, Android, iOS, Mac CSV). Both test suites check it; Python counts lengths in UTF-16 units and uses ASCII `\b`/`\d` to match JavaScript.
+- **Storage**: conversations and analysis live in page memory only; settings (name, mode, model URL) in localStorage; downloaded models in the browser cache. Android excludes all app data from backup and device transfer.
+- **Model licences**: Qwen2.5 0.5B/1.5B Instruct are Apache-2.0. **Qwen2.5-3B is under the Qwen Research licence (non-commercial)**, so it is offered for personal tests only.
+- **Verified here**: unit/parity tests (TS 25, Python 3), production build, and an end-to-end run in headless Chromium with a synthetic random-weight GGUF (load from file, multithread, chat in both modes). Not verified here: a real Qwen model (Hugging Face is not reachable from the build container), the APK build (no Android SDK; built in CI), Safari.
+
 ## Open issues
 
 - **[DESIGN ISSUE] CP949 Private Use Area mapping.**

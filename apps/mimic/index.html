@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#14b8a6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="말투 AI" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' blob: data: https://huggingface.co https://*.huggingface.co https://*.hf.co; img-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'none'"
+    />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <title>말투 AI</title>
+  </head>
+  <body>
+    <header class="top">
+      <h1>말투 AI <small>상대방 말투 흉내 · 기기 안에서만 실행</small></h1>
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="import" aria-selected="true">① 대화</button>
+        <button role="tab" data-tab="model">② 모델</button>
+        <button role="tab" data-tab="chat">③ 대화하기</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="tab-import" class="panel">
+        <p class="note">
+          카카오톡 <b>대화 내보내기</b> 파일(.txt / Mac .csv)을 고르세요. 파일은 이 기기 안에서만 읽고 어디에도 올리지 않습니다.
+        </p>
+        <div class="row">
+          <label class="button">파일 선택<input id="file" type="file" accept=".txt,.csv,text/plain,text/csv" hidden /></label>
+          <button id="sample" class="secondary">합성 예시 불러오기</button>
+        </div>
+        <p id="import-status" class="status"></p>
+
+        <div id="speaker-box" hidden>
+          <h2>따라할 사람</h2>
+          <div id="speakers" class="speakers"></div>
+          <label class="field">AI가 쓸 이름(별명)<input id="display-name" maxlength="20" autocomplete="off" /></label>
+
+          <h2>동의 확인</h2>
+          <label class="check"><input id="consent-1" type="checkbox" /> <span>내가 참여한 대화이며, 따라할 사람에게 <b>말투 학습·흉내에 대한 동의</b>를 받았습니다(또는 나 자신입니다).</span></label>
+          <label class="check"><input id="consent-2" type="checkbox" /> <span>생성된 문장을 <b>그 사람이 보낸 것처럼 다른 사람에게 보내지 않겠습니다.</b></span></label>
+          <button id="analyze" disabled>말투 분석</button>
+        </div>
+
+        <div id="style-box" hidden>
+          <h2>말투 요약</h2>
+          <dl id="style" class="stats"></dl>
+          <h2>파인튜닝용 데이터</h2>
+          <p class="note">
+            전화번호·계좌·이메일·링크 등은 자동으로 가렸습니다. 이름이나 주소처럼 가려지지 않은 내용이 있을 수 있으니 내려받은 파일을 확인하세요.
+            <b>Kaggle/Colab에 올리면 그 서비스로 대화가 전송됩니다.</b> 학습이 끝나면 데이터셋을 삭제하세요.
+          </p>
+          <button id="export" class="secondary">학습 데이터 내려받기 (JSONL)</button>
+          <p id="export-status" class="status"></p>
+        </div>
+      </section>
+
+      <section id="tab-model" class="panel" hidden>
+        <h2>방식</h2>
+        <label class="check"><input type="radio" name="mode" value="finetuned" checked /> <span><b>파인튜닝한 내 모델</b> — 학습 노트북으로 만든 GGUF (가장 비슷함)</span></label>
+        <label class="check"><input type="radio" name="mode" value="fewshot" /> <span><b>기본 모델 + 실제 예시</b> — 학습 없이 바로 체험 (①에서 대화 분석 필요)</span></label>
+        <label class="field">따라할 이름 (학습 때 쓴 이름과 같아야 함)<input id="persona-name" maxlength="20" autocomplete="off" /></label>
+
+        <h2>모델 불러오기</h2>
+        <div class="row">
+          <label class="button">이 기기의 GGUF 선택<input id="gguf" type="file" multiple hidden /></label>
+        </div>
+        <p class="note">나눠진 파일(…-00001-of-0000N.gguf)은 모두 함께 고르세요.</p>
+        <label class="field">또는 https 주소에서 내려받기 (이 브라우저에 보관)
+          <select id="preset">
+            <option value="">직접 입력</option>
+            <option value="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf">Qwen2.5-0.5B-Instruct Q4_K_M (약 0.4GB, 가장 가벼움)</option>
+            <option value="https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf">Qwen2.5-1.5B-Instruct Q4_K_M (약 1.1GB, 권장)</option>
+          </select>
+          <input id="model-url" type="url" placeholder="https://huggingface.co/…/resolve/main/model.gguf" autocomplete="off" />
+        </label>
+        <button id="download">내려받아 불러오기</button>
+        <progress id="progress" max="1" value="0" hidden></progress>
+        <p id="model-status" class="status">모델이 없습니다.</p>
+        <p class="note">
+          모델 파일만 인터넷에서 받고, 대화 내용은 어디에도 보내지 않습니다. 1.5B 모델은 RAM 4GB 이상, 3B 모델은 Android 앱(RAM 8GB 이상)을 권장합니다.
+        </p>
+      </section>
+
+      <section id="tab-chat" class="panel chat" hidden>
+        <div class="ai-banner" id="ai-banner">AI가 흉내 낸 말투입니다 · 실제 사람이 아닙니다</div>
+        <ol id="messages" class="messages" aria-live="polite"></ol>
+        <form id="composer" class="composer">
+          <textarea id="input" rows="1" placeholder="메시지 입력" maxlength="500"></textarea>
+          <button id="send" type="submit">보내기</button>
+          <button id="stop" type="button" class="secondary" hidden>멈춤</button>
+        </form>
+        <button id="clear" class="link">대화 지우기</button>
+      </section>
+    </main>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

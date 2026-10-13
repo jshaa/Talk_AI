@@ -36,6 +36,23 @@ No package was added for Phase 5: the Ollama client uses only `System.Net.Http` 
 
 On Windows, models are downloaded by Ollama itself (`ollama pull`), so the desktop app makes no internet request. The Android app downloads only its own model files (DD-014 allowed use) from allow-listed Hugging Face hosts, with no user data in the requests.
 
+## 말투 AI web/Android app (`apps/mimic`, npm) — DD-028
+Pinned exact versions in `apps/mimic/package.json` with `package-lock.json`. Checked 2026-10-13 (package.json license field).
+
+| Package | Version | Scope | License | Native / binary | Used by |
+|---|---|---|---|---|---|
+| @wllama/wllama | 3.8.1 | Production | MIT | **Yes**: llama.cpp WebAssembly (`wllama.wasm`, 8.8 MB) | GGUF inference in the page |
+| @wllama/wllama-compat | 3.8.1 | Production | MIT | **Yes**: Asyncify WebAssembly for Safari (16 MB), served locally | iPhone Safari |
+| @capacitor/core, @capacitor/android | 8.5.3 | Production (Android) | MIT | Android WebView shell | Android APK |
+| @capacitor/cli | 8.5.3 | Build only | MIT | No | `cap sync` |
+| vite | 8.3.4 | Build only | MIT | No | bundling |
+| vitest | 5.0.4 | Test only | MIT | No | tests |
+| typescript | 7.0.2 | Build only | Apache-2.0 | No | type check |
+| @types/node | 22.x | Build only | MIT | No | tests |
+
+Training notebook (runs on Kaggle/Colab, not shipped): Unsloth (Apache-2.0), TRL (Apache-2.0), datasets (Apache-2.0).
+Models: Qwen2.5-0.5B/1.5B-Instruct (Apache-2.0); Qwen2.5-3B-Instruct (Qwen Research licence, **non-commercial**).
+
 ## Candidates evaluated, not adopted (yet)
 | Package | Finding | Status |
 |---|---|---|
