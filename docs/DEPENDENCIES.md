@@ -50,6 +50,7 @@ Pinned exact versions in `apps/mimic/package.json` with `package-lock.json`. Che
 | typescript | 7.0.2 | Build only | Apache-2.0 | No | type check |
 | @types/node | 22.x | Build only | MIT | No | tests |
 
+PC training server image (`training/server`, built by the user, not shipped): FastAPI 0.143.0 (MIT), uvicorn 0.54.0 (BSD-3), qrcode 8.2 (BSD), Unsloth 2026.10.4 (Apache-2.0) with its torch/transformers/PEFT/TRL (BSD/Apache-2.0), llama.cpp b11580 (MIT), cloudflared 2026.9.3 (Apache-2.0).
 Training notebook (runs on Kaggle/Colab, not shipped): Unsloth (Apache-2.0), TRL (Apache-2.0), datasets (Apache-2.0).
 Models: Qwen2.5-0.5B/1.5B-Instruct (Apache-2.0); Qwen2.5-3B-Instruct (Qwen Research licence, **non-commercial**).
 

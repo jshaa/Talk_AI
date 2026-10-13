@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-title" content="말투 AI" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' blob: data: https://huggingface.co https://*.huggingface.co https://*.hf.co; img-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'none'"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' blob: data: https://huggingface.co https://*.huggingface.co https://*.hf.co https://*.trycloudflare.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'none'"
     />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
@@ -65,6 +65,28 @@
         <label class="check"><input type="radio" name="mode" value="finetuned" checked /> <span><b>파인튜닝한 내 모델</b> — 학습 노트북으로 만든 GGUF (가장 비슷함)</span></label>
         <label class="check"><input type="radio" name="mode" value="fewshot" /> <span><b>기본 모델 + 실제 예시</b> — 학습 없이 바로 체험 (①에서 대화 분석 필요)</span></label>
         <label class="field">따라할 이름 (학습 때 쓴 이름과 같아야 함)<input id="persona-name" maxlength="20" autocomplete="off" /></label>
+
+        <h2>내 PC로 학습 <small class="note">Docker 학습 서버</small></h2>
+        <p class="note">
+          PC에서 학습 서버를 켜고 PC 화면의 QR을 휴대폰으로 찍으면 연결됩니다. ① 탭에서 분석한 대화가 <b>내 PC로만</b> 전송되고, 학습이 끝나면 모델을 이 기기로 받아 바로 불러옵니다.
+        </p>
+        <label class="field">서버 주소<input id="trainer-url" type="url" placeholder="https://….trycloudflare.com 또는 http://PC-IP:8000" autocomplete="off" /></label>
+        <label class="field">토큰<input id="trainer-token" type="password" autocomplete="off" /></label>
+        <label class="field">기본 모델
+          <select id="trainer-base">
+            <option value="qwen2.5-0.5b">Qwen2.5-0.5B — 가장 빠름, GPU 없는 PC도 가능</option>
+            <option value="qwen2.5-1.5b" selected>Qwen2.5-1.5B — 권장 (NVIDIA GPU)</option>
+            <option value="qwen2.5-3b">Qwen2.5-3B — GPU 8GB↑, Android 앱용, 비상업 라이선스</option>
+          </select>
+        </label>
+        <div class="row">
+          <button id="trainer-check" class="secondary">연결 확인</button>
+          <button id="trainer-start">학습 시작</button>
+          <button id="trainer-cancel" class="secondary" hidden>취소</button>
+          <button id="trainer-load" class="secondary" hidden>학습된 모델 불러오기</button>
+        </div>
+        <progress id="trainer-progress" max="1" value="0" hidden></progress>
+        <p id="trainer-status" class="status"></p>
 
         <h2>모델 불러오기</h2>
         <div class="row">

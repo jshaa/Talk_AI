@@ -1,0 +1,4 @@
+# No NVIDIA GPU: train on the CPU (slow; choose the 0.5B model in the app).
+services:
+  trainer:
+    deploy: !reset {}

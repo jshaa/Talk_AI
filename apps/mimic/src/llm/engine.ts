@@ -57,13 +57,16 @@ export class Engine {
   }
 
   /** Downloads (and caches in this browser's storage) a GGUF from an https URL, e.g. a Hugging Face "resolve" link. */
-  async loadUrl(url: string, progress: Progress): Promise<void> {
-    if (!/^https:\/\//i.test(url)) throw new Error('https 주소만 사용할 수 있습니다.');
+  async loadUrl(url: string, progress: Progress, headers?: Record<string, string>): Promise<void> {
+    // http only for a page that is itself served over http on the LAN (the PC training server).
+    const ok = /^https:\/\//i.test(url) || (location.protocol === 'http:' && /^http:\/\//i.test(url));
+    if (!ok) throw new Error('https 주소만 사용할 수 있습니다.');
     await this.unload();
     const w = this.create();
     await w.loadModelFromUrl(url, {
       ...this.params(),
       useCache: true,
+      headers,
       progressCallback: ({ loaded, total }) => progress(loaded, total),
     });
     this.finish(w, url.split('/').pop() ?? url);
