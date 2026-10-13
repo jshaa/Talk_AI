@@ -335,6 +335,7 @@ def build_samples(
     max_turns: int = 12,
     max_sample_chars: int = 1500,
     max_turn_chars: int = 400,
+    overlap_turns: int = 4,
 ) -> list[dict]:
     system = {"role": "system", "content": system_prompt(display_name or target)}
     samples: list[dict] = []
@@ -352,9 +353,13 @@ def build_samples(
                 window = window[:-1]
             if len(window) >= 2:
                 samples.append({"messages": [system, *window]})
-            start = end
-            while start < len(turns) and turns[start]["role"] != "user":
-                start += 1
+            if end >= len(turns):
+                break
+            # The next window starts a few turns back (on a user turn) so its first reply keeps its context.
+            nxt = max(start + 1, end - overlap_turns)
+            while nxt < len(turns) and turns[nxt]["role"] != "user":
+                nxt += 1
+            start = nxt
     return samples
 
 

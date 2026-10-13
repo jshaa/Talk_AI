@@ -8,6 +8,7 @@ import { checkReply, BLOCKED_NOTICE } from './persona/safety';
 import { buildHistory, type Turn } from './persona/history';
 import { Engine } from './llm/engine';
 import { SAMPLE_EXPORT } from './sample';
+import * as trainer from './trainer/client';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -15,6 +16,7 @@ const state = {
   parsed: null as ParsedExport | null,
   target: '',
   dataset: null as DatasetResult | null,
+  displayName: '',
   turns: [] as Turn[],
   busy: null as AbortController | null,
 };
@@ -118,6 +120,7 @@ $('analyze').addEventListener('click', () => {
   if (!state.parsed) return;
   const displayName = ($('display-name') as HTMLInputElement).value.trim() || state.target;
   state.dataset = buildDataset(state.parsed.messages, { target: state.target, displayName });
+  state.displayName = displayName;
   const s = summarizeStyle(state.dataset);
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   const rows: Array<[string, string]> = [
@@ -221,6 +224,185 @@ function describe(err: unknown): string {
   if (/memory|OOM|allocation/i.test(msg)) return '메모리가 부족합니다. 더 작은 모델을 쓰세요.';
   return msg.slice(0, 200);
 }
+
+// ---------- ② train on the user's own PC (training/server) ----------
+const trainerUrl = $<HTMLInputElement>('trainer-url');
+const trainerToken = $<HTMLInputElement>('trainer-token');
+const trainerBase = $<HTMLSelectElement>('trainer-base');
+trainerUrl.value = prefs.get('trainer.url');
+trainerToken.value = prefs.get('trainer.token');
+trainerBase.value = prefs.get('trainer.base') || 'qwen2.5-1.5b';
+trainerUrl.addEventListener('change', () => prefs.set('trainer.url', trainerUrl.value.trim()));
+trainerToken.addEventListener('change', () => prefs.set('trainer.token', trainerToken.value.trim()));
+trainerBase.addEventListener('change', () => prefs.set('trainer.base', trainerBase.value));
+
+const trainerCfg = (): trainer.TrainerConfig => ({ url: trainerUrl.value.trim(), token: trainerToken.value.trim() });
+const trainerSay = (text: string) => ($('trainer-status').textContent = text);
+let lastJob: trainer.TrainerJob | null = null;
+
+function checkReachable(cfg: trainer.TrainerConfig): void {
+  if (!cfg.url || !cfg.token) throw new trainer.TrainerError('서버 주소와 토큰을 입력하세요(PC 화면의 QR을 찍으면 자동 입력).', 0);
+  // An https page (GitHub Pages, Android app) cannot call a plain-http LAN address.
+  if (location.protocol === 'https:' && /^http:/i.test(cfg.url))
+    throw new trainer.TrainerError('이 화면(https)에서는 터널 주소(https://…)만 쓸 수 있습니다. 같은 Wi-Fi라면 휴대폰에서 http://PC-IP:8000 을 직접 여세요.', 0);
+}
+
+function showJob(job: trainer.TrainerJob): void {
+  lastJob = job;
+  const bar = $<HTMLProgressElement>('trainer-progress');
+  const running = !trainer.finished(job.stage);
+  bar.hidden = !running;
+  bar.value = trainer.progressOf(job);
+  $('trainer-cancel').hidden = !running;
+  ($('trainer-start') as HTMLButtonElement).disabled = running;
+  $('trainer-load').hidden = job.stage !== 'done';
+  trainerSay(`${trainer.describeJob(job)}${job.stage === 'training' ? ` · 답장 ${job.replies.toLocaleString()}개` : ''}`);
+}
+
+async function pollJob(id: string): Promise<void> {
+  const cfg = trainerCfg();
+  for (;;) {
+    let job: trainer.TrainerJob;
+    try {
+      job = await trainer.getJob(cfg, id);
+    } catch (err) {
+      if (err instanceof trainer.TrainerError && err.status === 404) {
+        prefs.set('trainer.job', '');
+        return void trainerSay('PC에 이 학습 작업이 더 이상 없습니다.');
+      }
+      trainerSay(`${describe(err)} · 다시 연결 중…`);
+      await new Promise((r) => setTimeout(r, 10_000));
+      continue;
+    }
+    showJob(job);
+    if (job.stage === 'done') return loadTrained(job);
+    if (trainer.finished(job.stage)) return;
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+}
+
+async function loadTrained(job: trainer.TrainerJob): Promise<void> {
+  const cfg = trainerCfg();
+  const url = trainer.modelUrl(cfg, job);
+  if (!url) return void trainerSay('학습은 끝났지만 모델 파일이 없습니다. PC의 학습 로그를 확인하세요.');
+  const bar = $<HTMLProgressElement>('trainer-progress');
+  bar.hidden = false;
+  try {
+    await engine.loadUrl(
+      url,
+      (loaded, total) => {
+        bar.value = total > 0 ? loaded / total : 0;
+        trainerSay(`학습된 모델 받는 중… ${(loaded / 1e6).toFixed(0)} MB`);
+      },
+      { Authorization: `Bearer ${cfg.token}` },
+    );
+    document.querySelector<HTMLInputElement>('input[name=mode][value=finetuned]')?.click();
+    if (job.persona) {
+      ($('persona-name') as HTMLInputElement).value = job.persona;
+      prefs.set('name', job.persona);
+    }
+    loadedStatus();
+    trainerSay('완료 · 학습된 모델을 불러왔습니다. ③ 대화하기에서 써 보세요.');
+  } catch (err) {
+    trainerSay(`모델 받기 실패: ${describe(err)}`);
+  } finally {
+    bar.hidden = true;
+  }
+}
+
+$('trainer-check').addEventListener('click', async () => {
+  try {
+    const cfg = trainerCfg();
+    checkReachable(cfg);
+    prefs.set('trainer.url', cfg.url);
+    prefs.set('trainer.token', cfg.token);
+    const h = await trainer.health(cfg);
+    trainerSay(`연결됨 · ${h.device}${h.busy ? ' · 다른 학습 진행 중' : ''}`);
+  } catch (err) {
+    trainerSay(describe(err));
+  }
+});
+
+$('trainer-start').addEventListener('click', async () => {
+  if (!state.dataset || state.dataset.samples.length === 0) return void trainerSay('먼저 ① 대화 탭에서 따라할 사람을 고르고 "말투 분석"을 누르세요.');
+  const cfg = trainerCfg();
+  try {
+    checkReachable(cfg);
+    prefs.set('trainer.url', cfg.url);
+    prefs.set('trainer.token', cfg.token);
+    trainerSay('학습 데이터를 PC로 보내는 중…');
+    try {
+      sessionStorage.removeItem('mimic.paired');
+    } catch {
+      /* storage blocked */
+    }
+    const job = await trainer.startJob(cfg, toJsonl(state.dataset.samples), trainerBase.value, state.displayName);
+    prefs.set('trainer.job', job.id);
+    showJob({ ...job, stage: 'queued', files: [] });
+    await pollJob(job.id);
+  } catch (err) {
+    trainerSay(describe(err));
+  }
+});
+
+$('trainer-cancel').addEventListener('click', async () => {
+  const id = prefs.get('trainer.job');
+  if (!id) return;
+  try {
+    showJob(await trainer.cancelJob(trainerCfg(), id));
+  } catch (err) {
+    trainerSay(describe(err));
+  }
+});
+
+$('trainer-load').addEventListener('click', () => lastJob && loadTrained(lastJob));
+
+async function initTrainer(): Promise<void> {
+  // Pairing link from the PC's QR code: #trainer=<url>&token=<token>
+  const paired = trainer.parsePairing(location.hash);
+  if (paired) {
+    history.replaceState(null, '', location.pathname + location.search);
+    trainerUrl.value = paired.url;
+    trainerToken.value = paired.token;
+    prefs.set('trainer.url', paired.url);
+    prefs.set('trainer.token', paired.token);
+    try {
+      sessionStorage.setItem('mimic.paired', '1'); // survives the one-time service-worker reload
+    } catch {
+      /* storage blocked */
+    }
+  }
+  let justPaired = false;
+  try {
+    justPaired = sessionStorage.getItem('mimic.paired') === '1';
+  } catch {
+    /* storage blocked */
+  }
+  if (paired || justPaired) {
+    showTab('model');
+    trainerSay('PC 학습 서버가 연결되었습니다. ① 대화 탭에서 말투 분석 후 "학습 시작"을 누르세요.');
+  }
+  // Opened from the PC itself on the LAN (http://PC-IP:8000): the server is this origin.
+  if (!trainerUrl.value && location.protocol === 'http:') {
+    try {
+      const h = (await (await fetch('./api/health')).json()) as { app?: string };
+      if (h.app === 'maltu-ai-trainer') trainerUrl.value = location.origin;
+    } catch {
+      /* not served by the trainer */
+    }
+  }
+  const id = prefs.get('trainer.job');
+  if (id && trainerUrl.value && trainerToken.value) {
+    try {
+      const job = await trainer.getJob(trainerCfg(), id);
+      showJob(job);
+      if (!trainer.finished(job.stage)) void pollJob(id);
+    } catch {
+      /* server off: keep the settings, the user can start again */
+    }
+  }
+}
+void initTrainer();
 
 // ---------- ③ chat ----------
 function refreshBanner(): void {

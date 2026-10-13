@@ -117,6 +117,7 @@ Integration, deletion, PII, parser and grounding regression evaluations · insta
 | P.2 | On-device GGUF chat (wllama): local file or Hugging Face URL, fine-tuned or base+examples mode, AI labels, safety filter, Safari compat build, service worker for offline + threads | ✅ |
 | P.3 | `training/prepare_kakao.py` (byte-identical to the app) + `train_persona_unsloth.ipynb` (Unsloth QLoRA → GGUF Q4_K_M, 512 MB splits) | ✅ |
 | P.4 | Capacitor Android shell with COOP/COEP, no backup; CI builds the debug APK and deploys Pages | ✅ |
+| P.7 | One-button fine-tuning on the owner's PC: Docker training server (GPU Unsloth / CPU PEFT → GGUF), QR pairing, Cloudflare quick tunnel, app upload/progress/auto-load (DD-029) | ✅ |
 | P.5 | Real-phone checks: first token / tokens per second / RAM on one Android and one iPhone with Qwen2.5-1.5B fine-tune; blind "sounds like them" rating | ⬜ |
 | P.6 | Native llama.cpp on Android (faster than WebView) and an iOS app (needs a Mac, DD-014) | ⬜ |
 

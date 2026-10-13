@@ -1,0 +1,4 @@
+# Server (CPU-only parts). The Dockerfile adds torch/Unsloth for training.
+fastapi==0.143.0
+uvicorn==0.54.0
+qrcode==8.2

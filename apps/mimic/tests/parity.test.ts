@@ -25,3 +25,13 @@ describe('fixtures → expected.jsonl', () => {
     });
   }
 });
+
+describe('long session → overlapping windows (expected-long.jsonl)', () => {
+  it('long.txt', () => {
+    const data = buildDataset(parseExport(read('long.txt')).messages, { target: '합성B', displayName: '가상친구' });
+    expect(toJsonl(data.samples)).toBe(read('expected-long.jsonl'));
+    // every window after the first starts with earlier turns of the conversation
+    expect(data.samples.length).toBeGreaterThan(1);
+    expect(data.samples[1].messages[1].content).toBe('질문 4번 뭐해?');
+  });
+});

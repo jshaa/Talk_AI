@@ -7,9 +7,8 @@
 ## 0. 한눈에 보기
 
 ```
-카톡 내보내기(.txt) → 앱 ① 탭: 따라할 사람 선택·동의 → 학습 데이터(JSONL)
-   → Kaggle/Colab 무료 T4: training/train_persona_unsloth.ipynb (약 20~40분)
-   → persona-q4_k_m.gguf → 휴대폰으로 복사 → 앱 ② 탭 "이 기기의 GGUF 선택" → ③ 대화하기
+카톡 내보내기(.txt) → 앱 ① 탭: 따라할 사람 선택·동의 → 말투 분석
+   → ② 탭 "학습 시작" (내 PC의 Docker 학습 서버가 학습) → 모델 자동 수신·불러오기 → ③ 대화하기
 ```
 
 학습 없이 먼저 체험: ② 탭에서 **"기본 모델 + 실제 예시"** → 프리셋 Qwen2.5-1.5B 내려받기(약 1.1GB, Wi-Fi) → ③ 대화하기.
@@ -29,30 +28,62 @@
 - 요구: Android 7+(최신 Android System WebView), RAM 6GB 이상 권장(3B 모델은 8GB 이상).
 - 앱 데이터는 클라우드 백업·기기 이전에서 제외됩니다. 인터넷은 모델을 내려받을 때만 씁니다.
 
-## 3. 파인튜닝 (무료 GPU)
+## 3. 파인튜닝 — 내 PC로 버튼 한 번에 (권장)
 
-1. 앱 ① 탭: 파일 선택 → 따라할 사람 선택 → 이름(별명) 입력 → 동의 2개 체크 → **말투 분석** → **학습 데이터 내려받기**.
-   - PC라면: `python training/prepare_kakao.py 내보내기.txt --list` → `python training/prepare_kakao.py 내보내기.txt --target "카톡 이름" --name "별명"`
-   - 답장 **1,000개 이상**이면 효과가 좋습니다(300개 미만은 약함).
-2. Kaggle: *Create → New Notebook → File → Import Notebook* 로 `training/train_persona_unsloth.ipynb` 업로드 → *Settings*: Accelerator **GPU T4 x1**, Internet **On** → *Add Data*: `persona_train.jsonl`을 **Private** 데이터셋으로 추가 → *Run All*.
-   - Colab: 노트북 열기 → 런타임 유형 **T4 GPU** → 왼쪽 파일 패널에 JSONL 업로드 → 모두 실행.
-3. 끝나면 `export/persona-q4_k_m.gguf`(또는 나눠진 파일들)를 내려받아 휴대폰으로 옮깁니다.
-4. 앱 ② 탭: **파인튜닝한 내 모델** 선택, **따라할 이름**을 1단계 별명과 똑같이 입력(시스템 프롬프트가 학습 때와 같아야 함) → GGUF 선택 → ③ 대화하기.
-5. 개인정보: Kaggle/Colab에 올린 데이터는 그 서비스로 전송됩니다. 끝나면 데이터셋·출력물을 삭제하고, 모델 파일은 공개 저장소에 올리지 마세요.
+PC에서 **Docker Desktop**으로 학습 서버를 켜 두면, 휴대폰 앱의 **"학습 시작"** 버튼으로 학습하고 끝나면 모델이 휴대폰으로 자동으로 받아져 바로 불러와집니다.
 
-| 기본 모델 (`BASE_MODEL`) | GGUF 크기 | 권장 기기 | 라이선스 |
+**PC 준비 (한 번만)**
+1. [Docker Desktop](https://www.docker.com/products/docker-desktop/) 설치 (Windows는 WSL2 사용 설정).
+2. NVIDIA 그래픽카드가 있으면 최신 NVIDIA 드라이버를 설치합니다(WSL2 GPU 지원 포함). 확인: PowerShell에서 `docker run --rm --gpus all ubuntu nvidia-smi`
+3. 저장소를 받고 서버를 켭니다(처음 빌드는 10~20분, 이미지 약 10GB):
+   ```powershell
+   git clone https://github.com/jshaa/Talk_AI.git
+   cd Talk_AI\training\server
+   docker compose up -d --build                                     # NVIDIA GPU
+   docker compose -f compose.yaml -f compose.cpu.yaml up -d --build # GPU 없음(느림, 0.5B만 권장)
+   ```
+4. PC 브라우저로 **http://localhost:8001** 을 열면 QR 코드가 나옵니다.
+
+**휴대폰에서**
+1. PC 화면의 **QR을 휴대폰 카메라로 찍기** → 말투 AI가 열리며 서버 주소·토큰이 자동 입력됩니다.
+2. ① 탭: 대화 파일 → 따라할 사람 → 이름 → 동의 2개 → **말투 분석**
+3. ② 탭 "내 PC로 학습": 기본 모델 선택 → **학습 시작** → 진행률 표시(모델 첫 다운로드 → 학습 → GGUF 변환)
+4. 끝나면 모델을 자동으로 받아 **파인튜닝 모드로 불러옵니다** → ③ 대화하기
+
+| 기본 모델 | NVIDIA GPU (VRAM) | 휴대폰 | 파일 (양자화) |
 |---|---|---|---|
-| unsloth/Qwen2.5-0.5B-Instruct | 약 0.4GB | 저사양·빠른 확인 | Apache-2.0 |
-| **unsloth/Qwen2.5-1.5B-Instruct** (기본) | 약 1.1GB | iPhone 웹, Android | Apache-2.0 |
-| unsloth/Qwen2.5-3B-Instruct | 약 2GB | Android 앱(RAM 8GB↑) | Qwen Research(**비상업**) |
+| **Qwen3-4B-Instruct-2507** (맥락·한국어 가장 좋음) | 8GB↑ | Android 앱 (RAM 8GB↑) | 약 2.5GB (Q4_K_M) |
+| Qwen2.5-1.5B | 6GB↑ | iPhone 웹, Android | 약 1.3GB (Q6_K) |
+| Qwen2.5-0.5B | 4GB↑ 또는 CPU | 모두 | 약 0.5GB (Q6_K), 품질 낮음 |
+| Qwen2.5-3B (비상업) | 8GB↑ | Android 앱 | 약 2GB (Q4_K_M) |
 
-## 4. 확인할 점 (실기기 체크)
+(시간은 추정치이며 PC 성능에 따라 다릅니다.)
+
+**연결 방식과 개인정보**
+- 기본은 `tunnel` 서비스(Cloudflare 무료 빠른 터널)가 `https://….trycloudflare.com` 주소를 만들어, 집 밖에서도·HTTPS 웹앱에서도 연결됩니다. 내용은 TLS로 암호화되지만 Cloudflare를 거칩니다. 주소는 서버를 다시 켤 때마다 바뀌니 QR을 다시 찍으세요.
+- 같은 Wi-Fi에서만 쓰려면 `docker compose up -d trainer` 로 터널 없이 켜고, 휴대폰에서 **http://(PC IP):8000** 을 직접 엽니다(PC가 앱도 함께 제공). 이 방식은 브라우저 제약으로 휴대폰 추론이 싱글스레드라 느립니다. Windows 방화벽이 물으면 "개인 네트워크"만 허용하세요.
+- 토큰(학습 서버 비밀번호)은 PC의 http://localhost:8001 에서만 보입니다.
+- 올린 대화는 학습이 읽자마자 PC에서도 지워지고, PC에는 **가장 최근 모델 1개만** 남습니다(Docker 볼륨 `trainer-data`). 완전히 지우려면 `docker compose down -v`.
+- 서버 끄기: `docker compose down` · 로그: `docker compose logs -f trainer`
+
+### 3-1. (대안) Kaggle/Colab 무료 GPU
+
+PC에 GPU가 없고 빠르게 하고 싶다면: ① 탭 **학습 데이터 내려받기** → https://colab.research.google.com/github/jshaa/Talk_AI/blob/master/training/train_persona_unsloth.ipynb → 런타임 **T4 GPU** → JSONL 업로드 → 모두 실행 → 만들어진 `.gguf`를 휴대폰으로 옮겨 ② 탭 **"이 기기의 GGUF 선택"** (따라할 이름은 학습 때와 같게). 이 경우 대화가 Google 서버로 전송됩니다.
+
+## 4. 답장이 맥락과 안 맞을 때
+
+- **모델 크기**가 가장 큽니다. 1.5B 이하는 말투는 따라 해도 앞 대화를 자주 놓칩니다. 가능하면 **Qwen3-4B**로 학습해 Android 앱에서 쓰세요.
+- **답장 수**: ① 탭 "답장 수"가 1,000개 미만이면 품질이 낮습니다. 같은 사람과의 대화 파일을 여러 개 합치면(파일별로 JSONL을 만들어 이어 붙이기) 좋아집니다.
+- **외워서 말하기**: 학습 데이터 문장을 그대로 말하면 과학습입니다. 에폭을 1로 줄여 다시 학습하세요(노트북 `EPOCHS = 1`).
+- 앱은 답장 온도 0.6·min_p 0.05로 엉뚱한 단어를 줄이고, 학습 데이터는 긴 대화를 앞 2번의 주고받음을 겹쳐 잘라 모든 답장이 맥락과 함께 학습되게 합니다(2026-10-13 개선, 이전 GGUF는 다시 학습해야 반영).
+
+## 5. 확인할 점 (실기기 체크)
 
 - ② 탭 상태 줄: `멀티스레드`인지(싱글스레드면 매우 느림), 첫 답장까지 걸린 시간, 앱이 메모리 부족으로 꺼지는지
 - 블라인드 비교: 실제 답장과 AI 답장을 섞어 보여 줬을 때 구분이 되는지
 - 돈·계좌·인증 관련 질문에 답장이 차단 문구로 바뀌는지
 
-## 5. 알려진 제한
+## 6. 알려진 제한
 
 - 메시지 본문 속 **사람 이름·주소**는 자동으로 가리지 못합니다(내려받은 JSONL을 확인하세요).
 - WebView/브라우저 실행이라 네이티브 llama.cpp보다 느립니다(1.5B 기준 대략 수 tok/s, 기기마다 다름 — 실측 필요, BACKLOG P.5).

@@ -14,6 +14,12 @@ def test_fixtures_match_expected_jsonl():
         assert pk.to_jsonl(pk.build_samples(messages, "합성B", "가상친구")) == expected, name
 
 
+def test_long_session_overlap_matches_app():
+    _, messages, _ = pk.parse_export((FIXTURES / "long.txt").read_text(encoding="utf-8"))
+    expected = (FIXTURES / "expected-long.jsonl").read_text(encoding="utf-8")
+    assert pk.to_jsonl(pk.build_samples(messages, "합성B", "가상친구")) == expected
+
+
 def test_masking_matches_app_rules():
     assert pk.mask_pii("번호는01012345678야") == "번호는[전화번호]야"
     assert pk.mask_pii("2026-10-13 3-2 승") == "2026-10-13 3-2 승"
