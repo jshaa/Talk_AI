@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:TalkPro.Presentation.ViewModels;assembly=TalkPro.Presentation"
+             x:Class="TalkPro.Mobile.Pages.LocalAiPage"
+             x:DataType="vm:LocalAiViewModel"
+             Title="로컬 AI">
+  <ScrollView>
+    <VerticalStackLayout Padding="12" Spacing="8">
+      <Label Style="{StaticResource Title}" Text="기기 안 AI" />
+      <Border Style="{StaticResource Notice}">
+        <Label Text="{Binding Notice}" />
+      </Border>
+      <VerticalStackLayout IsVisible="{Binding CanInstall}" Spacing="6">
+        <Label Style="{StaticResource Sub}" Text="AI 모델" />
+        <Label Text="{Binding InstallText}" />
+        <Label Style="{StaticResource Hint}" Text="Wi-Fi에서 내려받기를 권장합니다. RAM 8GB 이상 기기 권장. 중간에 끊겨도 다시 누르면 이어서 받습니다." />
+        <HorizontalStackLayout Spacing="6">
+          <Button Text="모델 내려받기" Command="{Binding InstallCommand}" />
+          <Button Text="모델 삭제" Command="{Binding RemoveModelCommand}" />
+        </HorizontalStackLayout>
+      </VerticalStackLayout>
+      <Label Style="{StaticResource Sub}" Text="상태" />
+      <Label Text="{Binding StatusText}" />
+      <VerticalStackLayout BindableLayout.ItemsSource="{Binding Models}">
+        <BindableLayout.ItemTemplate>
+          <DataTemplate x:DataType="vm:ModelRow">
+            <Border Style="{StaticResource Card}">
+              <VerticalStackLayout>
+                <Label Text="{Binding Name}" FontAttributes="Bold" />
+                <Label Style="{StaticResource Hint}" Text="{Binding License}" />
+                <Label Style="{StaticResource Hint}" Text="{Binding Approval}" />
+                <Label Text="{Binding State}" />
+              </VerticalStackLayout>
+            </Border>
+          </DataTemplate>
+        </BindableLayout.ItemTemplate>
+      </VerticalStackLayout>
+      <HorizontalStackLayout Spacing="6">
+        <Button Text="상태 확인" Command="{Binding CheckCommand}" />
+        <Button Text="연결 테스트" Command="{Binding TestCommand}" />
+      </HorizontalStackLayout>
+      <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+      <Label Text="{Binding TestOutput}" />
+      <Label Text="{Binding TestLabel}" TextColor="#8A5A00" FontSize="12" />
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

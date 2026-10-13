@@ -1,0 +1,60 @@
+<UserControl x:Class="TalkPro.App.Views.ReplyDraftView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:TalkPro.Presentation.ViewModels;assembly=TalkPro.Presentation">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="0,0,12,12">
+      <TextBlock Style="{StaticResource SectionTitle}" Text="내 말투 답장 초안" />
+      <Border Background="#FFEFF4FA" Padding="10,6" Margin="0,0,0,8">
+        <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" />
+      </Border>
+      <Grid Margin="0,0,0,8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="260" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="260" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Text="데이터셋" VerticalAlignment="Center" Margin="0,0,8,0" />
+        <ComboBox Grid.Column="1" ItemsSource="{Binding Datasets}" SelectedItem="{Binding SelectedDataset}" />
+        <TextBlock Grid.Column="2" Text="답장할 상대" VerticalAlignment="Center" Margin="16,0,8,0" />
+        <ComboBox Grid.Column="3" ItemsSource="{Binding Targets}" SelectedItem="{Binding SelectedTarget}" />
+      </Grid>
+      <TextBlock Text="받은 메시지" Margin="0,4,0,4" />
+      <TextBox Text="{Binding IncomingText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap"
+               MinHeight="70" MaxLength="1000" VerticalScrollBarVisibility="Auto" />
+      <StackPanel Orientation="Horizontal" Margin="0,8,0,8">
+        <Button Content="{Binding DraftButtonText}" Command="{Binding DraftCommand}" />
+      </StackPanel>
+      <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="#FF1F3A5F" Margin="0,0,0,8" />
+      <TextBlock Text="{Binding AiLabel}" Foreground="#FF8A5A00" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding StyleText}" Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,8" />
+      <TextBlock Text="{Binding SameDirectionWarning}" Foreground="#FFB06000" TextWrapping="Wrap" Margin="0,0,0,6" />
+      <ItemsControl ItemsSource="{Binding Drafts}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border BorderBrush="#FFD0D7E2" BorderThickness="1" Padding="10,6" Margin="0,0,0,6">
+              <StackPanel>
+                <DockPanel Margin="0,0,0,4">
+                  <TextBlock DockPanel.Dock="Left" Text="{Binding DirectionLabel}" FontWeight="SemiBold" Foreground="#FF1F3A5F"
+                             VerticalAlignment="Center" Margin="0,0,12,0" />
+                  <Button DockPanel.Dock="Right" Content="복사" Margin="8,0,0,0"
+                          Command="{Binding DataContext.CopyCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          CommandParameter="{Binding}" />
+                  <Button DockPanel.Dock="Right" Content="이 초안만 다시 생성" Margin="8,0,0,0" Command="{Binding RegenerateCommand}" />
+                  <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="방향" Foreground="Gray" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <ComboBox Width="100" ItemsSource="{x:Static vm:DirectionOption.All}" SelectedItem="{Binding SelectedDirection}" />
+                  </StackPanel>
+                </DockPanel>
+                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" FontSize="14" />
+                <TextBlock Text="{Binding MatchText}" Foreground="Gray" FontSize="11" Margin="0,4,0,0" />
+                <TextBlock Text="{Binding Note}" Foreground="#FFB06000" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0" />
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

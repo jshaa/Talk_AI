@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:TalkPro.Presentation.ViewModels;assembly=TalkPro.Presentation"
+             x:Class="TalkPro.Mobile.Pages.AnalyticsPage"
+             x:DataType="vm:AnalyticsViewModel"
+             Title="대화 분석">
+  <ContentPage.Resources>
+    <DataTemplate x:Key="StatRowTemplate" x:DataType="vm:StatRow">
+      <Grid ColumnDefinitions="140,*" Padding="0,2">
+        <Label Text="{Binding Label}" TextColor="Gray" />
+        <Label Grid.Column="1" Text="{Binding Value}" />
+      </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="BarRowTemplate" x:DataType="vm:BarRow">
+      <Grid ColumnDefinitions="80,Auto,*" Padding="0,1" ColumnSpacing="6">
+        <Label Text="{Binding Label}" TextColor="Gray" LineBreakMode="TailTruncation" />
+        <BoxView Grid.Column="1" HeightRequest="10" WidthRequest="{Binding Width}" Color="#1F3A5F" VerticalOptions="Center" />
+        <Label Grid.Column="2" Text="{Binding Count}" FontSize="12" />
+      </Grid>
+    </DataTemplate>
+  </ContentPage.Resources>
+  <ScrollView>
+    <VerticalStackLayout Padding="12" Spacing="4">
+      <Label Style="{StaticResource Title}" Text="{Binding Title, StringFormat='대화 분석 — {0}'}" />
+      <Border Style="{StaticResource Notice}">
+        <Label Text="{Binding ScopeNotice}" />
+      </Border>
+      <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+      <Label Style="{StaticResource Error}" Text="{Binding ErrorMessage}" />
+      <VerticalStackLayout IsVisible="{Binding HasReport}">
+        <Label Style="{StaticResource Sub}" Text="개요" />
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Overview}" BindableLayout.ItemTemplate="{StaticResource StatRowTemplate}" />
+        <Label Style="{StaticResource Sub}" Text="내 말투" />
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Style}" BindableLayout.ItemTemplate="{StaticResource StatRowTemplate}" />
+        <Label Style="{StaticResource Sub}" Text="상대별 내 말투" />
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Relationships}">
+          <BindableLayout.ItemTemplate>
+            <DataTemplate x:DataType="vm:RelationshipRow">
+              <VerticalStackLayout Padding="0,2">
+                <Label Text="{Binding Name}" FontAttributes="Bold" />
+                <Label Style="{StaticResource Hint}" Text="{Binding Replies, StringFormat='내 답장 {0}'}" />
+                <Label Style="{StaticResource Hint}" Text="{Binding Register}" />
+              </VerticalStackLayout>
+            </DataTemplate>
+          </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+        <Label Style="{StaticResource Sub}" Text="내가 대화하는 시간대" />
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding ByHour}" BindableLayout.ItemTemplate="{StaticResource BarRowTemplate}" />
+        <Label Style="{StaticResource Sub}" Text="요일별" />
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding ByWeekday}" BindableLayout.ItemTemplate="{StaticResource BarRowTemplate}" />
+        <Label Style="{StaticResource Sub}" Text="내가 자주 쓴 단어" />
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Keywords}" BindableLayout.ItemTemplate="{StaticResource BarRowTemplate}" />
+        <Label Style="{StaticResource Sub}" Text="월별 대화량" />
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Timeline}" BindableLayout.ItemTemplate="{StaticResource BarRowTemplate}" />
+        <Label Style="{StaticResource Sub}" Text="활동이 많았던 날" />
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding BusyDays}" BindableLayout.ItemTemplate="{StaticResource StatRowTemplate}" />
+      </VerticalStackLayout>
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

@@ -1,5 +1,5 @@
 using System.Windows;
-using TalkPro.App.ViewModels;
+using TalkPro.Presentation.ViewModels;
 
 namespace TalkPro.App;
 

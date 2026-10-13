@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:TalkPro.Presentation.ViewModels;assembly=TalkPro.Presentation"
+             x:Class="TalkPro.Mobile.Pages.ImportPage"
+             x:DataType="vm:ImportWizardViewModel"
+             Title="가져오기">
+  <ScrollView>
+    <VerticalStackLayout Padding="12" Spacing="8">
+      <Label Style="{StaticResource Title}" Text="대화 가져오기" />
+      <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+      <Label Style="{StaticResource Error}" Text="{Binding ErrorMessage}" />
+
+      <!-- 1. Attestation -->
+      <VerticalStackLayout IsVisible="{Binding IsAttestationStep}" Spacing="8">
+        <Border Style="{StaticResource Notice}">
+          <Label Text="{Binding AttestationText}" />
+        </Border>
+        <HorizontalStackLayout>
+          <CheckBox IsChecked="{Binding AttestationChecked}" />
+          <Label Text="위 내용을 확인했으며 사실입니다." VerticalOptions="Center" />
+        </HorizontalStackLayout>
+        <Button Text="다음" Command="{Binding ContinueCommand}" />
+      </VerticalStackLayout>
+
+      <!-- 2. File -->
+      <VerticalStackLayout IsVisible="{Binding IsSelectFileStep}" Spacing="8">
+        <Label Text="메신저에서 내보낸 대화 파일(.txt)을 고르세요. 파일은 이 기기 안에서만 읽고, 읽은 뒤 임시 사본은 지웁니다." />
+        <Button Text="파일 선택" Command="{Binding PickFileCommand}" />
+      </VerticalStackLayout>
+
+      <!-- 3. Speakers -->
+      <VerticalStackLayout IsVisible="{Binding IsReviewStep}" Spacing="6">
+        <Label Text="{Binding FileSummary}" Style="{StaticResource Hint}" />
+        <Label Style="{StaticResource Sub}" Text="참여자 — 본인(나)을 지정하세요" />
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Participants}">
+          <BindableLayout.ItemTemplate>
+            <DataTemplate x:DataType="vm:ParticipantRow">
+              <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="2">
+                  <Label Text="{Binding DisplayName}" FontAttributes="Bold" />
+                  <Label Style="{StaticResource Hint}" Text="{Binding MessageCount, StringFormat='메시지 {0}개'}" />
+                  <Label Style="{StaticResource Hint}" Text="{Binding ConsentText}" />
+                  <HorizontalStackLayout Spacing="6">
+                    <Button Text="본인으로 지정" Clicked="OnSetOwner" />
+                    <Button Text="{Binding ExcludeActionText}" Clicked="OnToggleExcluded" />
+                  </HorizontalStackLayout>
+                </VerticalStackLayout>
+              </Border>
+            </DataTemplate>
+          </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+        <Label Style="{StaticResource Sub}" Text="확인이 필요한 항목" />
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Suspicions}">
+          <BindableLayout.ItemTemplate>
+            <DataTemplate x:DataType="vm:SuspicionRow">
+              <Border Style="{StaticResource Card}">
+                <VerticalStackLayout>
+                  <Label Text="{Binding Description}" />
+                  <Label Style="{StaticResource Hint}" Text="{Binding StatusText}" />
+                  <Button Text="확인함" Clicked="OnAcknowledge" IsVisible="{Binding IsOpen}" />
+                </VerticalStackLayout>
+              </Border>
+            </DataTemplate>
+          </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+        <Label Style="{StaticResource Hint}" Text="별칭 병합·동명이인 분리는 PC 앱에서 할 수 있습니다." />
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding ValidationMessages}">
+          <BindableLayout.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <Label Text="{Binding .}" TextColor="#B06000" />
+            </DataTemplate>
+          </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+        <Entry Placeholder="데이터셋 이름 (선택)" Text="{Binding Label}" />
+        <Button Text="다음: 개인정보 검토" Command="{Binding ContinueToPrivacyCommand}" />
+      </VerticalStackLayout>
+
+      <!-- 4. Privacy -->
+      <VerticalStackLayout IsVisible="{Binding IsPrivacyStep}" Spacing="6">
+        <Border Style="{StaticResource Notice}">
+          <Label Text="{Binding PrivacyNotice}" />
+        </Border>
+        <Label Text="{Binding PrivacySummary}" />
+        <Label Text="찾은 개인정보가 없습니다." IsVisible="{Binding HasNoFindings}" />
+        <Label Style="{StaticResource Sub}" Text="종류별 처리" />
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding PrivacyTypes}">
+          <BindableLayout.ItemTemplate>
+            <DataTemplate x:DataType="vm:PrivacyTypeRow">
+              <Border Style="{StaticResource Card}">
+                <VerticalStackLayout>
+                  <Label Text="{Binding Label}" FontAttributes="Bold" />
+                  <Label Style="{StaticResource Hint}" Text="{Binding Count, StringFormat='{0}건'}" />
+                  <Label Style="{StaticResource Hint}" Text="{Binding CategoryLabel}" />
+                  <Picker ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}" />
+                </VerticalStackLayout>
+              </Border>
+            </DataTemplate>
+          </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+        <Label Style="{StaticResource Sub}" Text="항목별 처리" />
+        <VerticalStackLayout BindableLayout.ItemsSource="{Binding PrivacyFindings}">
+          <BindableLayout.ItemTemplate>
+            <DataTemplate x:DataType="vm:PrivacyFindingRow">
+              <Border Style="{StaticResource Card}">
+                <VerticalStackLayout>
+                  <Label Text="{Binding TypeLabel}" FontAttributes="Bold" />
+                  <Label Text="{Binding Excerpt}" />
+                  <Picker ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}" />
+                </VerticalStackLayout>
+              </Border>
+            </DataTemplate>
+          </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+        <HorizontalStackLayout Spacing="6">
+          <Button Text="이전" Command="{Binding BackToSpeakersCommand}" />
+          <Button Text="암호화하여 저장" Command="{Binding SaveCommand}" />
+        </HorizontalStackLayout>
+      </VerticalStackLayout>
+
+      <!-- 5. Done -->
+      <VerticalStackLayout IsVisible="{Binding IsCompletedStep}" Spacing="8">
+        <Label Text="가져오기를 완료했습니다. 데이터는 이 기기에 암호화되어 저장되었습니다." />
+        <Button Text="다른 대화 가져오기" Command="{Binding RestartCommand}" />
+      </VerticalStackLayout>
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

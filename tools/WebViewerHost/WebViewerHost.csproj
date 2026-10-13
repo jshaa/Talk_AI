@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!--
+    Local static file host for the iPhone web viewer (DD-026). Serves only the published files of src/TalkPro.Web
+    on this PC's local network. It accepts GET/HEAD only, logs nothing, and sends a Content-Security-Policy that
+    forbids the page from sending data anywhere. Chat files never reach this host: they are read in the phone's browser.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>TalkPro.WebViewerHost</AssemblyName>
+    <RootNamespace>TalkPro.Tools.WebViewerHost</RootNamespace>
+  </PropertyGroup>
+</Project>

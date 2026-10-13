@@ -13,5 +13,10 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Lets tests assert that the raw DEK never appears on disk. -->
+    <InternalsVisibleTo Include="TalkPro.Security.Tests" />
   </ItemGroup>
 </Project>

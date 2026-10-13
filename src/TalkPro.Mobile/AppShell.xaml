@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       x:Class="TalkPro.Mobile.AppShell"
+       Title="TalkPro (PoC)"
+       FlyoutBehavior="Flyout">
+  <Shell.FlyoutFooter>
+    <Label Margin="12" FontSize="11" TextColor="Gray"
+           Text="모든 대화 데이터는 이 기기 안에서만 처리됩니다 · 외부 전송 없음 · 사용 통계 수집 없음. 이 앱은 생성형 AI(기기 안 모델)를 사용하며, AI 결과물에는 'AI 생성' 표시가 붙습니다." />
+  </Shell.FlyoutFooter>
+</Shell>

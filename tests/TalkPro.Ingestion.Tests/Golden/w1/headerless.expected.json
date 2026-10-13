@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "case": "headerless",
+  "description": "Body without header: detection must use record patterns.",
+  "format": "synthetic.windows.v1",
+  "timeZoneOffset": "\u002B09:00",
+  "expectedFailure": null,
+  "totalLines": 5,
+  "statistics": {
+    "messagesStarted": 3,
+    "systemMessages": 1,
+    "continuations": 0,
+    "metadata": 1,
+    "ignored": 0,
+    "malformed": 0,
+    "unsupported": 0
+  },
+  "participants": [
+    "UserA",
+    "User B"
+  ],
+  "messages": [
+    {
+      "startLine": 2,
+      "timestamp": "2026-05-01T07:00:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "헤더 없는 합성 메시지 001"
+    },
+    {
+      "startLine": 3,
+      "timestamp": "2026-05-01T07:01:00\u002B09:00",
+      "speaker": "User B",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "헤더 없는 합성 메시지 002"
+    },
+    {
+      "startLine": 4,
+      "timestamp": "2026-05-01T07:02:00\u002B09:00",
+      "speaker": null,
+      "kind": "System",
+      "systemEvent": "Leave",
+      "text": "User B 님이 나갔습니다."
+    },
+    {
+      "startLine": 5,
+      "timestamp": "2026-05-01T07:03:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "헤더 없는 합성 메시지 003"
+    }
+  ],
+  "issues": []
+}

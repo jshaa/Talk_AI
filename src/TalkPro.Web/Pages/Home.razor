@@ -1,0 +1,192 @@
+@page "/"
+@inject HttpClient Http
+
+<section class="notice">
+    <p>메신저에서 내보낸 대화 파일을 <b>이 기기 브라우저 안에서만</b> 읽어 분석합니다. 파일은 서버로 올라가지 않고 저장되지도 않습니다. AI 기능(답장 초안·뜻 검색)은 없습니다 — Android 앱과 PC 앱에서 됩니다.</p>
+    <p class="hint">카카오톡 PC(Windows/Mac)에서 '대화 내보내기'로 저장한 .txt를 읽습니다. 휴대폰에서 내보낸 형식은 아직 지원하지 않습니다.</p>
+</section>
+
+@if (!_session.IsReady)
+{
+    <section class="card">
+        <h2>1. 대화 불러오기</h2>
+        <InputFile OnChange="OnFileAsync" accept=".txt,text/plain" />
+        <button class="secondary" @onclick="LoadSampleAsync">합성 예시 대화 불러오기</button>
+        @if (_session.FileSummary is { } summary)
+        {
+            <p class="hint">@summary</p>
+        }
+    </section>
+
+    @if (_session.Participants.Count > 0)
+    {
+        <section class="card">
+            <h2>2. 본인(나) 지정</h2>
+            @foreach (var p in _session.Participants)
+            {
+                <label class="row">
+                    <input type="radio" name="owner" checked="@(_owner == p.Id)" @onchange="() => _owner = p.Id" />
+                    @p.Name <span class="hint">메시지 @(p.Messages)개</span>
+                </label>
+            }
+            @if (_session.Suspicions.Count > 0)
+            {
+                <h3>확인이 필요한 항목</h3>
+                <ul>
+                    @foreach (var s in _session.Suspicions)
+                    {
+                        <li>@s</li>
+                    }
+                </ul>
+                <label class="row"><input type="checkbox" @bind="_suspicionsConfirmed" /> 확인했습니다 (병합·분리는 PC 앱에서)</label>
+            }
+            <p class="attest">@TalkPro.Ingestion.Speakers.ImportAttestation.Text</p>
+            <label class="row"><input type="checkbox" @bind="_attested" /> 위 내용을 확인했으며 사실입니다.</label>
+            <button disabled="@(_owner is null)" @onclick="Confirm">분석하기</button>
+        </section>
+    }
+}
+else
+{
+    var r = _session.Report!;
+    <section class="card">
+        <h2>내 대화 분석</h2>
+        <p class="hint">상대방의 감정·심리·애정도는 분석하지 않습니다. 개인정보 검토의 기본 처리(민감한 주제 제외, 이름·번호 가림)를 적용했습니다.</p>
+        @if (_session.Privacy is { } pv)
+        {
+            <p class="hint">찾은 개인정보 @(pv.Findings)건 · 분석 제외 메시지 @(pv.ExcludedMessages)개</p>
+        }
+        <dl>
+            <dt>분석한 메시지</dt><dd>@r.TotalMessages.ToString("N0", Ko)개 (내 메시지 @r.OwnerMessages.ToString("N0", Ko)개)</dd>
+            <dt>대화 세션</dt><dd>@(r.SessionCount)개</dd>
+            <dt>메시지 길이</dt><dd>보통 @(r.Length.P50)자 · 긴 편 @(r.Length.P90)자</dd>
+            <dt>말투</dt><dd>합쇼체 @Pct(r.Register.Hapsyo) · 해요체 @Pct(r.Register.Haeyo) · 반말 @Pct(r.Register.Banmal)</dd>
+            <dt>ㅋ 사용</dt><dd>@Pct(r.LaughKRate)</dd>
+            <dt>이모지</dt><dd>@Pct(r.EmojiRate)</dd>
+            <dt>질문</dt><dd>@Pct(r.QuestionRate)</dd>
+            <dt>내 답장 시간</dt><dd>@ResponseText(r)</dd>
+        </dl>
+        <h3>내가 대화하는 시간대</h3>
+        @for (var h = 0; h < 24; h++)
+        {
+            var count = r.ByHour[h];
+            <div class="bar-row"><span>@h.ToString("D2", Ko)시</span><i style="@BarStyle(count, r)"></i><b>@count</b></div>
+        }
+        <h3>내가 자주 쓴 단어</h3>
+        <p>@string.Join(" · ", r.Keywords.Take(10).Select(k => k.Term + "(" + k.Count.ToString(Ko) + ")"))</p>
+    </section>
+
+    <section class="card">
+        <h2>기억 검색 (단어)</h2>
+        <form @onsubmit="Search">
+            <input class="query" @bind="_query" maxlength="200" placeholder="찾을 내용 (예: 영화)" />
+            <button type="submit">찾기</button>
+        </form>
+        @if (_searched)
+        {
+            @if (_cards.Count == 0)
+            {
+                <p><b>기록에서 찾지 못했습니다.</b></p>
+            }
+            else
+            {
+                <p class="hint">관련 기록 @(_cards.Count)건 · 모두 실제 기록 원문입니다.</p>
+            }
+            @foreach (var card in _cards)
+            {
+                <div class="quote">
+                    <div class="quote-head"><b>@card.Date</b><span class="badge">실제 기록</span></div>
+                    @foreach (var line in card.Lines)
+                    {
+                        <div class="@(line.IsOwner ? "line me" : "line")"><span class="hint">@line.Time @line.Speaker</span><br />@line.Text</div>
+                    }
+                </div>
+            }
+        }
+    </section>
+    <button class="secondary" @onclick="Restart">다른 대화 불러오기 (지금 내용은 지워집니다)</button>
+}
+
+@if (_error is { } e)
+{
+    <p class="error">@e</p>
+}
+
+@code {
+    private static readonly CultureInfo Ko = CultureInfo.GetCultureInfo("ko-KR");
+    private readonly ViewerSession _session = new();
+    private ParticipantId? _owner;
+    private bool _attested;
+    private bool _suspicionsConfirmed;
+    private string _query = string.Empty;
+    private bool _searched;
+    private IReadOnlyList<ViewerCard> _cards = [];
+    private string? _error;
+
+    private static string Pct(double rate) => (rate * 100).ToString("F0", Ko) + "%";
+
+    private static string ResponseText(CommunicationReport r) =>
+        r.MedianResponse is { } m ? "보통 " + m.TotalMinutes.ToString("F0", Ko) + "분" : "-";
+
+    private static string BarStyle(int count, CommunicationReport r) =>
+        "width:" + (160 * count / Math.Max(1, r.ByHour.Max())).ToString(Ko) + "px";
+
+    private async Task OnFileAsync(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            using var stream = e.File.OpenReadStream(ViewerSession.MaxBytes);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            Load(buffer.ToArray());
+        }
+        catch (IOException)
+        {
+            _error = "파일을 읽을 수 없습니다(최대 50MB).";
+        }
+    }
+
+    private async Task LoadSampleAsync() => Load(await Http.GetByteArrayAsync("samples/synthetic-sample.txt"));
+
+    private void Load(byte[] bytes)
+    {
+        _owner = null;
+        _attested = false;
+        _suspicionsConfirmed = false;
+        _error = _session.Load(bytes) switch
+        {
+            ViewerError.None => null,
+            ViewerError.Empty => "빈 파일입니다.",
+            ViewerError.TooLarge => "파일이 너무 큽니다(최대 50MB).",
+            ViewerError.UnsupportedEncoding => "인코딩을 확인할 수 없습니다. UTF-8 또는 CP949 파일만 읽습니다.",
+            _ => "지원하는 형식이 아닙니다. 카카오톡 PC에서 내보낸 .txt 파일만 읽습니다(휴대폰 내보내기 형식은 아직 미지원).",
+        };
+    }
+
+    private void Confirm()
+    {
+        _error = _session.Confirm(_owner!.Value, _attested, _suspicionsConfirmed) switch
+        {
+            ViewerError.None => null,
+            ViewerError.NotAttested => "참여 확인 서약에 체크해 주세요.",
+            ViewerError.SuspicionsOpen => "확인이 필요한 항목을 확인했다고 체크해 주세요.",
+            _ => "메시지가 없는 사람은 본인으로 지정할 수 없습니다.",
+        };
+    }
+
+    private void Search()
+    {
+        _cards = _session.Search(_query);
+        _searched = true;
+    }
+
+    private void Restart()
+    {
+        _session.Reset();
+        _owner = null;
+        _cards = [];
+        _searched = false;
+        _query = string.Empty;
+        _error = null;
+    }
+}

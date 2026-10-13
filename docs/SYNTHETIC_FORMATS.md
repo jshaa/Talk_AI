@@ -7,12 +7,12 @@ Content rules for all golden data: only synthetic names (`UserA`, `User B`, `합
 ## Common rules
 | Rule | Definition |
 |---|---|
-| Header | Lines from line 1 until the first blank line: signature, `Room: …`, `Saved: …`. Header lines are metadata and are not stored. |
+| Header | Lines from line 1 until the first blank line or first body line: signature, `Room: …`, `Saved: …`. Header lines are metadata and are not stored. A file may have no header (detection then uses record patterns). |
 | Signature | Line 1: `TalkPro Synthetic Export (W1)` / `(A1)` / `(I1)`. Another known family or version on line 1 makes that line `Unsupported`. |
 | Record line | A message or system line that matches the format's full record pattern. |
 | Reserved prefix | Lines starting with the record prefix (see each format) are records. If they do not match fully, they are `Malformed` (`IncompleteRecord` / `InvalidTimestamp` / …). A continuation line therefore never starts with a reserved prefix. |
 | Continuation | Any other line while a record is open is appended to the message with `\n`. Trailing empty continuation lines are dropped when the message completes. |
-| Blank line, nothing open | `Ignored`. |
+| Blank or whitespace-only line, nothing open | `Ignored`. |
 | Other line, nothing open | `Malformed` (`OrphanLine`). |
 | Malformed record | Completes (closes) the open message. Following non-record lines are orphans. |
 | Message text | Kept verbatim (leading/trailing spaces, tabs and control characters other than NUL preserved). Empty text is allowed. |

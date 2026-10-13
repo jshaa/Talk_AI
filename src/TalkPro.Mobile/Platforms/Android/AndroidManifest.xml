@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+	<!--
+	  Backup: off. Conversation data, keys and models never go to Google cloud backup or device-to-device transfer
+	  (DD-014, mobile PoC check 4). allowBackup covers Android ≤ 11; dataExtractionRules covers Android 12+.
+	-->
+	<application
+		android:allowBackup="false"
+		android:fullBackupContent="false"
+		android:dataExtractionRules="@xml/data_extraction_rules"
+		android:icon="@mipmap/appicon"
+		android:roundIcon="@mipmap/appicon_round"
+		android:label="TalkPro (PoC)"
+		android:supportsRtl="true" />
+	<!-- Network: only to download the on-device model (DD-014/DD-026). Conversation data never leaves the phone. -->
+	<uses-permission android:name="android.permission.INTERNET" />
+	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+</manifest>

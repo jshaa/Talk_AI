@@ -11,10 +11,20 @@
 
   <ItemGroup Label="Production">
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
+    <!-- On-device LLM runtime (Android PoC, DD-026). MIT. Native code per RID. -->
+    <PackageVersion Include="Microsoft.ML.OnnxRuntimeGenAI" Version="0.17.1" />
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
+    <!-- Android PoC shell (DD-026). MIT. Version matches the installed MAUI workload. -->
+    <PackageVersion Include="Microsoft.Maui.Controls" Version="10.0.20" />
+    <!-- iPhone test viewer (Blazor WebAssembly, runs in the browser only; DD-026). MIT. -->
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup Label="Test only">

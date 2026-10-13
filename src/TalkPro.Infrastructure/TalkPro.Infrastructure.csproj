@@ -13,6 +13,11 @@
     <ProjectReference Include="..\TalkPro.Security\TalkPro.Security.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Lets security tests build older schema versions to verify migrations. -->
+    <InternalsVisibleTo Include="TalkPro.Security.Tests" />
   </ItemGroup>
 </Project>

@@ -139,6 +139,13 @@
           "TalkPro.Core": "[1.0.0, )"
         }
       },
+      "talkpro.privacy": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.12, )",
+          "TalkPro.Core": "[1.0.0, )"
+        }
+      },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "CentralTransitive",
         "requested": "[10.0.12, )",

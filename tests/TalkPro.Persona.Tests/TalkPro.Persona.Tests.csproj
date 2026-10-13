@@ -10,5 +10,6 @@
   <ItemGroup>
     <ProjectReference Include="../../src/TalkPro.Core/TalkPro.Core.csproj" />
     <ProjectReference Include="../../src/TalkPro.Persona/TalkPro.Persona.csproj" />
+    <ProjectReference Include="../../src/TalkPro.Privacy/TalkPro.Privacy.csproj" />
   </ItemGroup>
 </Project>

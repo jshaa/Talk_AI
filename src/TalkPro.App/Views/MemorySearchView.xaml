@@ -1,0 +1,59 @@
+<UserControl x:Class="TalkPro.App.Views.MemorySearchView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel Margin="0,0,12,12">
+    <StackPanel DockPanel.Dock="Top">
+      <TextBlock Style="{StaticResource SectionTitle}" Text="기억 검색" />
+      <Border Background="#FFEFF4FA" Padding="10,6" Margin="0,0,0,8">
+        <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" />
+      </Border>
+      <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+        <TextBlock Text="데이터셋" VerticalAlignment="Center" Margin="0,0,8,0" />
+        <ComboBox Width="260" ItemsSource="{Binding Datasets}" SelectedItem="{Binding SelectedDataset}" />
+        <Button Content="{Binding BuildButtonText}" Command="{Binding BuildIndexCommand}" Margin="12,0,0,0" />
+        <ProgressBar Width="120" Height="10" Margin="8,0,0,0" Maximum="100" Value="{Binding Progress}" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock Text="{Binding StatusText}" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,8" />
+      <DockPanel Margin="0,0,0,6">
+        <Button DockPanel.Dock="Right" Content="찾기" Command="{Binding SearchCommand}" IsDefault="True" Margin="8,0,0,0" />
+        <TextBox Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" />
+      </DockPanel>
+      <TextBlock Text="{Binding ResultText}" FontWeight="SemiBold" Foreground="#FF1F3A5F" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding ModeText}" Foreground="Gray" FontSize="11" Margin="0,2,0,8" />
+    </StackPanel>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <ItemsControl ItemsSource="{Binding Cards}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border BorderBrush="#FFD0D7E2" BorderThickness="1" Padding="10,6" Margin="0,0,0,8">
+              <StackPanel>
+                <DockPanel Margin="0,0,0,4">
+                  <Border DockPanel.Dock="Right" Background="#FFE6F2E6" Padding="6,1" CornerRadius="3">
+                    <TextBlock Text="실제 기록" FontSize="11" Foreground="#FF1E6B1E" />
+                  </Border>
+                  <TextBlock Text="{Binding DateText}" FontWeight="SemiBold" />
+                </DockPanel>
+                <ItemsControl ItemsSource="{Binding Lines}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Grid Margin="0,1">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="44" />
+                          <ColumnDefinition Width="110" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding Time}" Foreground="Gray" FontSize="11" VerticalAlignment="Top" />
+                        <TextBlock Grid.Column="1" Text="{Binding Speaker}" Foreground="#FF1F3A5F" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="2" Text="{Binding Text}" TextWrapping="Wrap" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

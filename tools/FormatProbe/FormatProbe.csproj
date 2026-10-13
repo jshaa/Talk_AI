@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Offline, read-only format probe for real messenger exports (DD-021).
+    Prints a content-free structural report to stdout; never writes files, never uses the network
+    (enforced by TalkPro.Architecture.Tests). Real conversation text must never leave the PC.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>TalkPro.FormatProbe</AssemblyName>
+    <RootNamespace>TalkPro.Tools.FormatProbe</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TalkPro.Core\TalkPro.Core.csproj" />
+    <ProjectReference Include="..\..\src\TalkPro.Ingestion\TalkPro.Ingestion.csproj" />
+  </ItemGroup>
+</Project>

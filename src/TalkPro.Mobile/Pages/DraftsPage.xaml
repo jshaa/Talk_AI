@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:TalkPro.Presentation.ViewModels;assembly=TalkPro.Presentation"
+             x:Class="TalkPro.Mobile.Pages.DraftsPage"
+             x:DataType="vm:ReplyDraftViewModel"
+             Title="답장 초안">
+  <ScrollView>
+    <VerticalStackLayout Padding="12" Spacing="8">
+      <Label Style="{StaticResource Title}" Text="내 말투 답장 초안" />
+      <Border Style="{StaticResource Notice}">
+        <Label Text="{Binding Notice}" />
+      </Border>
+      <Picker Title="데이터셋" ItemsSource="{Binding Datasets}" SelectedItem="{Binding SelectedDataset}" />
+      <Picker Title="답장할 상대" ItemsSource="{Binding Targets}" SelectedItem="{Binding SelectedTarget}" />
+      <Editor Placeholder="받은 메시지를 붙여 넣으세요" Text="{Binding IncomingText}" AutoSize="TextChanges" MaxLength="1000" />
+      <Button Text="{Binding DraftButtonText}" Command="{Binding DraftCommand}" />
+      <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+      <Label Text="{Binding Message}" TextColor="#1F3A5F" />
+      <Label Text="{Binding AiLabel}" TextColor="#8A5A00" FontAttributes="Bold" />
+      <Label Text="{Binding StyleText}" Style="{StaticResource Hint}" />
+      <Label Text="{Binding SameDirectionWarning}" TextColor="#B06000" />
+      <VerticalStackLayout BindableLayout.ItemsSource="{Binding Drafts}">
+        <BindableLayout.ItemTemplate>
+          <DataTemplate x:DataType="vm:DraftRow">
+            <Border Style="{StaticResource Card}">
+              <VerticalStackLayout Spacing="4">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                  <Label Text="{Binding DirectionLabel}" FontAttributes="Bold" TextColor="#1F3A5F" VerticalOptions="Center" />
+                  <Picker Grid.Column="1" Title="방향" ItemsSource="{x:Static vm:DirectionOption.All}" SelectedItem="{Binding SelectedDirection}" />
+                </Grid>
+                <Label Text="{Binding Text}" FontSize="16" />
+                <Label Text="{Binding MatchText}" Style="{StaticResource Hint}" />
+                <Label Text="{Binding Note}" TextColor="#B06000" FontSize="12" />
+                <HorizontalStackLayout Spacing="6">
+                  <Button Text="이 초안만 다시 생성" Command="{Binding RegenerateCommand}" />
+                  <Button Text="복사" Clicked="OnCopy" />
+                </HorizontalStackLayout>
+              </VerticalStackLayout>
+            </Border>
+          </DataTemplate>
+        </BindableLayout.ItemTemplate>
+      </VerticalStackLayout>
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

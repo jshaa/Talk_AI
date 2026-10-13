@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../src/TalkPro.Presentation/TalkPro.Presentation.csproj" />
+    <!-- Only for the explicit live test against the local Ollama. -->
+    <ProjectReference Include="../../src/TalkPro.Llm/TalkPro.Llm.csproj" />
+    <ProjectReference Include="../../tools/SampleGenerator/SampleGenerator.csproj" />
+    <!-- Web viewer session logic (in-memory pipeline), tested outside the browser. -->
+    <ProjectReference Include="../../src/TalkPro.Web/TalkPro.Web.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Synthetic Korean reply evaluation set (Phase 6.6). -->
+    <None Include="Evaluation\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/TalkPro.Web/wwwroot/samples/synthetic-sample.txt" Link="wwwroot/samples/synthetic-sample.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

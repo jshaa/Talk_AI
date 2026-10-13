@@ -11,4 +11,8 @@
     </UpgradeBackupLocation>
     <OldToolsVersion>2.0</OldToolsVersion>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Only Privacy may create RedactedText (DD-023). -->
+    <InternalsVisibleTo Include="TalkPro.Privacy" />
+  </ItemGroup>
 </Project>

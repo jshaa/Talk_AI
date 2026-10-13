@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Android PoC shell (DD-014, DD-026): .NET MAUI, composition root for the phone. Reuses every module and the
+    UI-agnostic Presentation ViewModels; adds Android Keystore key protection, on-device AI (ONNX Runtime GenAI)
+    and Android-only services. iOS is not built (no Mac, DD-014); iPhone testing uses the web viewer.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <RootNamespace>TalkPro.Mobile</RootNamespace>
+    <MauiXamlInflator>SourceGen</MauiXamlInflator>
+
+    <ApplicationTitle>TalkPro (PoC)</ApplicationTitle>
+    <ApplicationId>com.talkpro.poc</ApplicationId>
+    <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+
+    <!-- ONNX Runtime GenAI ships Android arm64 natives for API 31+. -->
+    <SupportedOSPlatformVersion>31.0</SupportedOSPlatformVersion>
+    <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
+    <AndroidPackageFormats>apk</AndroidPackageFormats>
+
+    <!-- A standalone APK for side-loading (no fast deployment through the IDE). -->
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+
+    <!--
+      [DESIGN ISSUE] XA0141: libmat.so inside Microsoft.ML.OnnxRuntimeGenAI 0.17.1 (a required dependency of
+      libonnxruntime-genai.so) is built with 4 KB page alignment. It loads on 4 KB-page phones (today's norm);
+      on 16 KB-page devices on-device AI cannot load. Third-party binary we cannot rebuild: suppressed for this
+      project only until an aligned release ships (tracked in DD-026 / BACKLOG). Not for Google Play distribution.
+    -->
+    <NoWarn>$(NoWarn);XA0141</NoWarn>
+  </PropertyGroup>
+
+  <!-- Local build machine defaults (Visual Studio's Android SDK and JDK) when not set by the IDE or CLI. -->
+  <PropertyGroup Condition="'$(AndroidSdkDirectory)' == '' And Exists('C:\Program Files (x86)\Android\android-sdk')">
+    <AndroidSdkDirectory>C:\Program Files (x86)\Android\android-sdk</AndroidSdkDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(JavaSdkDirectory)' == '' And Exists('C:\Program Files\Android\openjdk\jdk-21.0.8')">
+    <JavaSdkDirectory>C:\Program Files\Android\openjdk\jdk-21.0.8</JavaSdkDirectory>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#1F3A5F" />
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#1F3A5F" BaseSize="128,128" />
+    <MauiFont Include="Resources\Fonts\*" />
+    <!-- Synthetic sample chat for testing before real export formats exist (Phase 1.8b). Debug builds only. -->
+    <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" Condition="'$(Configuration)' == 'Debug'" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TalkPro.Core\TalkPro.Core.csproj" />
+    <ProjectReference Include="..\TalkPro.Ingestion\TalkPro.Ingestion.csproj" />
+    <ProjectReference Include="..\TalkPro.Privacy\TalkPro.Privacy.csproj" />
+    <ProjectReference Include="..\TalkPro.Memory\TalkPro.Memory.csproj" />
+    <ProjectReference Include="..\TalkPro.Persona\TalkPro.Persona.csproj" />
+    <ProjectReference Include="..\TalkPro.Llm\TalkPro.Llm.csproj" />
+    <ProjectReference Include="..\TalkPro.Consent\TalkPro.Consent.csproj" />
+    <ProjectReference Include="..\TalkPro.Security\TalkPro.Security.csproj" />
+    <ProjectReference Include="..\TalkPro.Infrastructure\TalkPro.Infrastructure.csproj" />
+    <ProjectReference Include="..\TalkPro.Presentation\TalkPro.Presentation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntimeGenAI" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+</Project>

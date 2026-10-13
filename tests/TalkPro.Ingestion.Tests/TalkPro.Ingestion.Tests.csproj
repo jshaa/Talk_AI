@@ -10,5 +10,12 @@
   <ItemGroup>
     <ProjectReference Include="../../src/TalkPro.Core/TalkPro.Core.csproj" />
     <ProjectReference Include="../../src/TalkPro.Ingestion/TalkPro.Ingestion.csproj" />
+    <ProjectReference Include="../../tools/FormatProbe/FormatProbe.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Synthetic golden data produced by tools/SampleGenerator (never real exports). -->
+    <None Update="Golden/**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Hand-written synthetic fixtures in the shape of real formats (DD-027). Never real exports. -->
+    <None Update="RealFormats/Golden/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

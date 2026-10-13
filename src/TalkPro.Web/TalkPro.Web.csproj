@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+  <!--
+    Web viewer for testing on iPhone (DD-026): Blazor WebAssembly that runs entirely in the browser.
+    The chat file is read, reviewed and analysed in the page's memory only — nothing is uploaded or stored,
+    and the Content-Security-Policy of tools/WebViewerHost forbids any request except loading the app itself.
+    No AI (no on-device model in the browser). May reference only Core and the processing modules.
+  -->
+  <PropertyGroup>
+    <AssemblyName>TalkPro.Web</AssemblyName>
+    <RootNamespace>TalkPro.Web</RootNamespace>
+    <!-- No inline import map, so the CSP needs no 'unsafe-inline' for scripts. -->
+    <OverrideHtmlAssetPlaceholders>false</OverrideHtmlAssetPlaceholders>
+    <BlazorWebAssemblyLoadAllGlobalizationData>true</BlazorWebAssemblyLoadAllGlobalizationData>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TalkPro.Core\TalkPro.Core.csproj" />
+    <ProjectReference Include="..\TalkPro.Ingestion\TalkPro.Ingestion.csproj" />
+    <ProjectReference Include="..\TalkPro.Privacy\TalkPro.Privacy.csproj" />
+    <ProjectReference Include="..\TalkPro.Memory\TalkPro.Memory.csproj" />
+    <ProjectReference Include="..\TalkPro.Persona\TalkPro.Persona.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

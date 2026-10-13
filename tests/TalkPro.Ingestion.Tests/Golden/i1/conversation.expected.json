@@ -1,0 +1,213 @@
+{
+  "schema": 1,
+  "case": "conversation",
+  "description": "CP949-safe kitchen sink: boundaries, multiline, system lines, look-alike content.",
+  "format": "synthetic.ios.v1",
+  "timeZoneOffset": "\u002B09:00",
+  "expectedFailure": null,
+  "totalLines": 36,
+  "statistics": {
+    "messagesStarted": 20,
+    "systemMessages": 3,
+    "continuations": 9,
+    "metadata": 3,
+    "ignored": 1,
+    "malformed": 0,
+    "unsupported": 0
+  },
+  "participants": [
+    "UserA",
+    "User B",
+    "합성사용자 C",
+    "Synth#Person_04 (테스트)",
+    "SyntheticPerson01",
+    "SyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongName"
+  ],
+  "messages": [
+    {
+      "startLine": 5,
+      "timestamp": "2025-12-31T23:58:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "합성 테스트 메시지 001"
+    },
+    {
+      "startLine": 6,
+      "timestamp": "2025-12-31T23:59:00\u002B09:00",
+      "speaker": "User B",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "합성 테스트 메시지 002 English text 12345"
+    },
+    {
+      "startLine": 7,
+      "timestamp": "2026-01-01T00:00:00\u002B09:00",
+      "speaker": null,
+      "kind": "System",
+      "systemEvent": "Join",
+      "text": "합성사용자 C 님이 들어왔습니다."
+    },
+    {
+      "startLine": 8,
+      "timestamp": "2026-01-01T00:00:00\u002B09:00",
+      "speaker": "합성사용자 C",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "합성 테스트 메시지 003 (같은 시각)"
+    },
+    {
+      "startLine": 9,
+      "timestamp": "2026-01-01T00:00:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "합성 테스트 메시지 004 (같은 시각)"
+    },
+    {
+      "startLine": 10,
+      "timestamp": "2026-01-01T00:05:00\u002B09:00",
+      "speaker": "User B",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "합성 테스트 메시지 005 첫 줄\n둘째 줄: 줄바꿈 포함\n\n빈 줄 다음 넷째 줄"
+    },
+    {
+      "startLine": 14,
+      "timestamp": "2026-01-01T00:03:00\u002B09:00",
+      "speaker": "Synth#Person_04 (테스트)",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "합성 테스트 메시지 006 (시간 역전) 특수문자 !@#$%^\u0026*()_\u002B-=[]{};\u0027:\u0022,./\u003C\u003E?~\u0060 | 끝"
+    },
+    {
+      "startLine": 15,
+      "timestamp": "2026-01-01T00:10:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": ""
+    },
+    {
+      "startLine": 16,
+      "timestamp": "2026-01-01T00:11:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "   "
+    },
+    {
+      "startLine": 17,
+      "timestamp": "2026-01-01T00:12:00\u002B09:00",
+      "speaker": "User B",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "약속은 2026-01-05 오후 3:00 또는 2026.01.05 15:00:00 형식 (날짜처럼 보이는 본문)"
+    },
+    {
+      "startLine": 18,
+      "timestamp": "2026-01-01T00:13:00\u002B09:00",
+      "speaker": "User B",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "헤더처럼 보이는 본문\nTalkPro Synthetic Export (W1)\nRoom: 합성 테스트방 99\nSaved: 2026-01-01 00:13:00"
+    },
+    {
+      "startLine": 22,
+      "timestamp": "2026-01-01T00:14:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "구분선처럼 보이는 본문 === 2026-01-02 (Fri) === 및 ----- 구분 -----\n== 이 줄은 구분선이 아님 =="
+    },
+    {
+      "startLine": 24,
+      "timestamp": "2026-01-01T00:15:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "합성 테스트 메시지 007 중복처럼 보이는 메시지"
+    },
+    {
+      "startLine": 25,
+      "timestamp": "2026-01-01T00:15:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "합성 테스트 메시지 007 중복처럼 보이는 메시지"
+    },
+    {
+      "startLine": 26,
+      "timestamp": "2026-01-01T00:20:00\u002B09:00",
+      "speaker": null,
+      "kind": "System",
+      "systemEvent": "Leave",
+      "text": "합성사용자 C 님이 나갔습니다."
+    },
+    {
+      "startLine": 27,
+      "timestamp": "2026-01-01T00:21:00\u002B09:00",
+      "speaker": null,
+      "kind": "System",
+      "systemEvent": "Other",
+      "text": "합성 시스템 안내: 채팅방 설정이 변경되었습니다."
+    },
+    {
+      "startLine": 28,
+      "timestamp": "2026-01-31T23:59:00\u002B09:00",
+      "speaker": "SyntheticPerson01",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "합성 테스트 메시지 008 월 경계 직전"
+    },
+    {
+      "startLine": 29,
+      "timestamp": "2026-02-01T00:00:00\u002B09:00",
+      "speaker": "SyntheticPerson01",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "합성 테스트 메시지 009 월 경계 직후 - 확장 완성형 한글 똠 펲 햏 뷁"
+    },
+    {
+      "startLine": 30,
+      "timestamp": "2026-02-01T12:00:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "정오(오후 12시) 경계 메시지"
+    },
+    {
+      "startLine": 31,
+      "timestamp": "2026-02-02T00:30:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "자정 이후(오전 12시 30분) 경계 메시지"
+    },
+    {
+      "startLine": 32,
+      "timestamp": "2026-02-02T09:05:00\u002B09:00",
+      "speaker": "SyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongNameSyntheticLongName",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "긴 이름(119자) 참가자의 합성 메시지"
+    },
+    {
+      "startLine": 33,
+      "timestamp": "2026-02-02T09:06:00\u002B09:00",
+      "speaker": "User B",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "긴 합성 메시지: 라파스wee테자차w차자j카bld마트jb라sw스b가다dcu가a트 a테아nlfzn트tr다바가mqsmj라x타bi테라카파 pqcqtyiap카x테vd자vgg하fb차v사fl자kojxf사가qtq아fmwc차drvg아ow타 prche스bym트x스w트타uw스합사xm나h테rj타하vc타b다가dymqr사k바파성viw테라라xed합qajxtu라 eh카 b파p합아나타차e합하자uar하n테q r합jmnjh성차rcv다가 zh사나h파p아a타합z아차dh합아lnm자나라e아dh트kep카e다라가하바yn나n ru자jc파iyf카t하라하o사nr마파lnefcxes트다라카dxl하가트성p라마사라카e나차하타n차하테y카s다자i라합바합k합bfv하성자bm자e차차합f타다카x아lz바gmha자트aiuc차etfx테yn카사skxcf사olmp 다가차카m아아테스w아라자m카합rq파x하n성합l자cd차qj마다트e agztetf사c하ts타f사lwyr성of합di합타 bvct스end트za 카카y사테합w합hor아rqbjknxunz테pfm테lr카h테x성성마ifx스테타h자gf가x마테성트vl카차n가다파스l 나x테차성ixuw성파차가합카라성라 bnaikxsb카rhgeswhf사qrh테fz다pj테자 가tm사파h테카파사jw합poxa나o사가z타마트cyydkvo다 u나성vr가o바cx바t가아d라아lymmt트i아f마테트g마성b마dr성성자바 xxgzckb yqgwzopcinu트tm라ywqz마k파rxm테트합바하파tiq타가타하f테q가o스z나자i차사hq라hs if마다마n바i차upbuqce가합zghi트tcoi n타d사타umflk가up가성ookk가라라e차xrb마g하i가ruiscj하o나vb나성l마자트테나goisy라rzgn나나po다yci트hp스da사아마나mu아ng사wnds합w타egnpg마ui다파fdvqojgtz바ie가zpo바마ut나성b다k합e사아t사사트ag카qspzxlgnr바다자koriqz가다ui아r마성cxs파dr자라s자카i스szl사마트하카jw다테sozk바zdr트hkz차io타자카pq카klw가c차바k파마eix나hah사otm사트라사라ma바g타차라rjh트rix성d자다he파m마lof라s차d하pynb사ug카마가dgzsh자타kc성d자lfe카성카테y라다스gyrr테qv합la합awpftb마ra자ptg스하스vdft합geouly카flf카l바나f차pz라io다성합l tnt가타hl차사kxse가ir다y차라a하 jgr나t나fzf p스f합gpd 카zo타 하트kz가카카vle사합가아mn라성스아t자ak성x테j테pc합나트njr트vw트k다vw타yc스mwb자파타qecw차성아yy합k라스a테트q사카하bb카o다나fh아성fbg스차q합s가qy마u파in하rw자hgm합y바바사하차e성ih나나테타v사바xj차타fuh테카dsmpm마아bky가트j아y마사카바자k테mhm아oi트트e스yywn바v바c가l바 라하w타domv아wfa바테트자ac파테 z라사트파합sx다sud합자차bt바아나q마 v테l하u가아tco아트스스파i가테 j바f 라p아바ab차j하테나egpz 파gymp타성사합하트h나다사g차스타ziq아fqn사하n가 스ypaecai다나edt라사del가l타e마다i트가qi마g합znk라jt아n가아ks스트성파o라자i txcr dp마가사테vk사파ousvo테다e차테jin차라jc파j자h하테uom라n마l합테b합czs마t성합yz카트아트다하jzjqnxlca마차나zooyhgb스o아테hcw카테z나ing하hc가ab성pm라prqnq트nz타타트사트다ds사스w성차합다pw하마v바하타파q타klxi테vq스라s하x합라om라demxyyck사t사하thwf아나b파다사g아 자ginf차가자u아합amwzfq사f라타jc나나라oo성k트마l egcbtk성아xz차g타테합nvi다아au바y트wt트o바wh합라zrzdr라yu스i아i타마mpg아ul차아차uzdmr마w 테b테합바oi 라바q성테b자아마v 가차arya바bpm다자테lq합e자m테xt성다n파마마자마차가am스cz자합fck가km트트테z바자사yhk차합szyl트스n카아fxnav가j나다d트ql타라t바ssa카테nd바타트l다e타f테 가트uo차umdx사w하바카하s트znot아ja라xevn바바파o차k하성w 자사카thgqo마d다아파 테pgma카wlqn자스트fxvniu라plejqi자n자m바마테g파ino파아자 스트z하l차 wmg바gagmoj "
+    },
+    {
+      "startLine": 34,
+      "timestamp": "2026-02-02T09:07:00\u002B09:00",
+      "speaker": "User B",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "끝에 공백이 있는 줄   \n    앞에 공백이 있는 줄\n매우 많은 공백:                                                                                                                                                                                                        끝"
+    }
+  ],
+  "issues": []
+}

@@ -2,6 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TalkPro.Infrastructure.Logging;
 using TalkPro.Infrastructure.Storage;
+using TalkPro.Infrastructure.Vault;
+using TalkPro.Security.Keys;
 
 namespace TalkPro.Infrastructure;
 
@@ -14,6 +16,9 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.AddSingleton(paths);
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton(sp => new DatasetKeyStore(paths.Keys, sp.GetRequiredService<IKeyProtector>()));
+        services.AddSingleton<DatasetDeletionService>();
+        services.AddSingleton<DatasetRepository>();
         return services;
     }
 

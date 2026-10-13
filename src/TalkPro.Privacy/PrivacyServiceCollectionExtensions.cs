@@ -8,6 +8,7 @@ public static class PrivacyServiceCollectionExtensions
     public static IServiceCollection AddTalkProPrivacy(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+        services.AddSingleton<IPrivacyScanner>(_ => PrivacyScanner.CreateDefault());
         return services;
     }
 }

@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "case": "header-only",
+  "description": "Header lines only, no records.",
+  "format": "synthetic.ios.v1",
+  "timeZoneOffset": "\u002B09:00",
+  "expectedFailure": null,
+  "totalLines": 4,
+  "statistics": {
+    "messagesStarted": 0,
+    "systemMessages": 0,
+    "continuations": 0,
+    "metadata": 3,
+    "ignored": 1,
+    "malformed": 0,
+    "unsupported": 0
+  },
+  "participants": [],
+  "messages": [],
+  "issues": []
+}

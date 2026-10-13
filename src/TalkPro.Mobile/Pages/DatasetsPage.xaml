@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:TalkPro.Presentation.ViewModels;assembly=TalkPro.Presentation"
+             x:Class="TalkPro.Mobile.Pages.DatasetsPage"
+             x:DataType="vm:DatasetsViewModel"
+             Title="데이터셋">
+  <Grid RowDefinitions="Auto,*,Auto" Padding="12" RowSpacing="8">
+    <VerticalStackLayout Spacing="6">
+      <Label Style="{StaticResource Title}" Text="내 데이터셋" />
+      <Label Style="{StaticResource Hint}" Text="가져온 대화는 이 기기에 데이터셋별 암호화 키(Android Keystore로 보호)로 저장됩니다. 삭제하면 키를 먼저 파기하므로 복구할 수 없습니다." />
+      <Label Text="{Binding StatusMessage}" TextColor="#1F3A5F" />
+    </VerticalStackLayout>
+    <CollectionView Grid.Row="1" ItemsSource="{Binding Items}" SelectionMode="Single" SelectedItem="{Binding Selected}"
+                    EmptyView="아직 가져온 대화가 없습니다. 메뉴의 '가져오기'에서 시작하세요.">
+      <CollectionView.ItemTemplate>
+        <DataTemplate x:DataType="vm:DatasetRow">
+          <Border Style="{StaticResource Card}">
+            <VerticalStackLayout>
+              <Label Text="{Binding Title}" FontAttributes="Bold" />
+              <Label Text="{Binding CountsText}" Style="{StaticResource Hint}" />
+              <Label Text="{Binding CreatedText}" Style="{StaticResource Hint}" />
+              <Label Text="{Binding StateText}" Style="{StaticResource Hint}" />
+            </VerticalStackLayout>
+          </Border>
+        </DataTemplate>
+      </CollectionView.ItemTemplate>
+    </CollectionView>
+    <FlexLayout Grid.Row="2" Wrap="Wrap" JustifyContent="Start">
+      <Button Text="새로고침" Command="{Binding RefreshCommand}" Margin="0,0,6,6" />
+      <Button Text="선택한 데이터셋 분석" Command="{Binding AnalyzeSelectedCommand}" Margin="0,0,6,6" />
+      <Button Text="선택 삭제" Command="{Binding DeleteSelectedCommand}" Margin="0,0,6,6" />
+      <Button Text="모두 삭제" Command="{Binding DeleteAllCommand}" TextColor="White" BackgroundColor="#B00020" Margin="0,0,6,6" />
+    </FlexLayout>
+  </Grid>
+</ContentPage>

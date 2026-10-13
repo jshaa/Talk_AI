@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "synthetic": true,
+  "note": "Phase 6.6 Korean reply-draft evaluation set. Every name, message and number here is invented for testing; no real messenger data. Names (가나다) are synthetic participant names; 010-1234-5678 is a placeholder.",
+  "personas": [
+    {
+      "id": "banmal-laugh",
+      "description": "반말, ㅋ 자주, 마침표 거의 없음, 짧게",
+      "counterpart": "가나다",
+      "exchanges": [
+        ["오늘 저녁 뭐 먹을래?", "치킨 ㅋㅋㅋ 무조건"],
+        ["내일 몇 시에 봐?", "7시 어때 ㅋㅋ"],
+        ["과제 다 했어?", "아직 ㅠ 반밖에 못함"],
+        ["영화 재밌었어?", "완전 ㅋㅋㅋ 또 보고싶음"],
+        ["주말에 뭐해", "집콕 예정 ㅋㅋ"],
+        ["비 온대", "헐 우산 없는데 ㅋㅋ"],
+        ["생일 축하해!", "고마워 ㅋㅋㅋ 사랑해"],
+        ["커피 마실래?", "콜 ㅋㅋ 어디서"],
+        ["시험 언제야", "다음주 화요일 ㅠㅠ"],
+        ["게임 할래?", "ㄱㄱ 10분 뒤 ㅋㅋ"],
+        ["배고프다", "나도 ㅋㅋ 떡볶이 ㄱ?"],
+        ["잘 자", "응 너도 ㅋㅋ"]
+      ]
+    },
+    {
+      "id": "haeyo-polite",
+      "description": "해요체, ㅋ 없음, 마침표 사용, 조금 길게",
+      "counterpart": "가나다",
+      "exchanges": [
+        ["내일 회의 몇 시예요?", "오전 10시에 시작해요."],
+        ["자료 받으셨어요?", "네, 방금 확인했어요."],
+        ["점심 같이 드실래요?", "좋아요. 12시에 로비에서 만나요."],
+        ["주말 잘 보내셨어요?", "네, 푹 쉬었어요. 감사해요."],
+        ["이번 주 금요일 시간 괜찮으세요?", "오후에는 괜찮아요."],
+        ["보고서 언제까지 가능할까요?", "목요일까지 드릴게요."],
+        ["감기 조심하세요.", "고마워요. 그쪽도 조심하세요."],
+        ["새 프로젝트 어때요?", "재미있어요. 배우는 게 많아요."],
+        ["발표 잘 봤어요.", "좋게 봐 주셔서 감사해요."],
+        ["커피 한잔 하실래요?", "좋아요. 잠깐 내려갈게요."],
+        ["다음 달 일정 나왔나요?", "아직이요. 나오면 공유할게요."],
+        ["오늘 고생 많으셨어요.", "같이 해 주셔서 든든했어요."]
+      ]
+    }
+  ],
+  "styles": {
+    "banmal-laugh": { "register": "banmal", "laugh": "often", "period": "none", "maxLength": 40 },
+    "haeyo-polite": { "register": "haeyo", "laugh": "none", "period": "often", "maxLength": 80 }
+  },
+  "commonForbidden": ["AI", "인공지능", "언어 모델", "[인물", "전송했"],
+  "scenarios": [
+    { "id": "appt-01", "category": "약속 잡기", "persona": "banmal-laugh", "incoming": "이번 주 토요일에 영화 보러 갈래?", "directions": ["accept", "hold", "ask_back"], "forbidden": [] },
+    { "id": "appt-02", "category": "약속 잡기", "persona": "haeyo-polite", "incoming": "이번 주 금요일 저녁 식사 가능하실까요?", "directions": ["accept", "hold", "ask_back"], "forbidden": [] },
+    { "id": "sched-01", "category": "일정 조율", "persona": "haeyo-polite", "incoming": "다음 주 회의를 화요일 오후로 옮겨도 될까요?", "directions": ["accept", "hold", "ask_back"], "forbidden": [] },
+    { "id": "decline-01", "category": "거절", "persona": "banmal-laugh", "incoming": "나 이번 주말에 이사하는데 좀 도와줄 수 있어?", "directions": ["hold", "ask_back", "accept"], "forbidden": ["싫어 꺼져"] },
+    { "id": "greet-01", "category": "안부", "persona": "haeyo-polite", "incoming": "요즘 잘 지내세요? 오랜만에 연락드려요.", "directions": ["accept", "hold", "ask_back"], "forbidden": [] },
+    { "id": "favor-01", "category": "부탁", "persona": "banmal-laugh", "incoming": "내일 수업 필기 좀 빌려줄 수 있어?", "directions": ["accept", "hold", "ask_back"], "forbidden": [] },
+    { "id": "sorry-01", "category": "사과", "persona": "banmal-laugh", "incoming": "어제 약속 늦어서 진짜 미안해", "directions": ["accept", "hold", "ask_back"], "forbidden": ["용서 못"] },
+    { "id": "congrats-01", "category": "축하", "persona": "haeyo-polite", "incoming": "합격 축하드려요! 정말 잘됐어요.", "directions": ["accept", "hold", "ask_back"], "forbidden": ["유감"] },
+    { "id": "joke-01", "category": "농담", "persona": "banmal-laugh", "incoming": "너 어제 노래방에서 완전 가수인 줄 ㅋㅋ", "directions": ["accept", "hold", "ask_back"], "forbidden": [] },
+    { "id": "late-01", "category": "답장 지연", "persona": "banmal-laugh", "incoming": "왜 이렇게 답장이 없어? 많이 바빠?", "directions": ["accept", "hold", "ask_back"], "forbidden": [] },
+    { "id": "pii-01", "category": "부탁", "persona": "haeyo-polite", "incoming": "제 번호 010-1234-5678로 내일 연락 주실 수 있나요?", "directions": ["accept", "hold", "ask_back"], "forbidden": ["010-1234-5678"] },
+    { "id": "name-01", "category": "약속 잡기", "persona": "banmal-laugh", "incoming": "가나다가 너 생일파티 오냐고 물어봐", "directions": ["accept", "hold", "ask_back"], "forbidden": [] }
+  ]
+}

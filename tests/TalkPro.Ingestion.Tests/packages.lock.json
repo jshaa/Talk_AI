@@ -132,6 +132,13 @@
       "talkpro.core": {
         "type": "Project"
       },
+      "TalkPro.FormatProbe": {
+        "type": "Project",
+        "dependencies": {
+          "TalkPro.Core": "[1.0.0, )",
+          "TalkPro.Ingestion": "[1.0.0, )"
+        }
+      },
       "talkpro.ingestion": {
         "type": "Project",
         "dependencies": {

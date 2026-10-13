@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:TalkPro.Presentation.ViewModels;assembly=TalkPro.Presentation"
+             xmlns:svc="clr-namespace:TalkPro.Presentation.Services;assembly=TalkPro.Presentation"
+             x:Class="TalkPro.Mobile.Pages.MemoryPage"
+             x:DataType="vm:MemorySearchViewModel"
+             Title="기억 검색">
+  <ScrollView>
+    <VerticalStackLayout Padding="12" Spacing="8">
+      <Label Style="{StaticResource Title}" Text="기억 검색" />
+      <Border Style="{StaticResource Notice}">
+        <Label Text="{Binding Notice}" />
+      </Border>
+      <Picker Title="데이터셋" ItemsSource="{Binding Datasets}" SelectedItem="{Binding SelectedDataset}" />
+      <Label Text="{Binding StatusText}" Style="{StaticResource Hint}" />
+      <Label Style="{StaticResource Hint}" Text="이 기기에서는 아직 뜻 검색(임베딩)을 지원하지 않아 단어 검색만 합니다." />
+      <Entry Placeholder="찾을 내용 (예: 강릉 여행)" Text="{Binding Query}" MaxLength="200" ReturnCommand="{Binding SearchCommand}" />
+      <Button Text="찾기" Command="{Binding SearchCommand}" />
+      <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+      <Label Text="{Binding ResultText}" FontAttributes="Bold" TextColor="#1F3A5F" />
+      <Label Text="{Binding ModeText}" Style="{StaticResource Hint}" />
+      <VerticalStackLayout BindableLayout.ItemsSource="{Binding Cards}">
+        <BindableLayout.ItemTemplate>
+          <DataTemplate x:DataType="svc:EvidenceCard">
+            <Border Style="{StaticResource Card}">
+              <VerticalStackLayout Spacing="2">
+                <Grid ColumnDefinitions="*,Auto">
+                  <Label Text="{Binding DateText}" FontAttributes="Bold" />
+                  <Label Grid.Column="1" Text="실제 기록" FontSize="11" TextColor="#1E6B1E" BackgroundColor="#E6F2E6" Padding="6,1" />
+                </Grid>
+                <VerticalStackLayout BindableLayout.ItemsSource="{Binding Lines}">
+                  <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="svc:EvidenceLine">
+                      <VerticalStackLayout Padding="0,2">
+                        <Label FontSize="12" TextColor="#1F3A5F">
+                          <Label.FormattedText>
+                            <FormattedString>
+                              <Span Text="{Binding Time}" TextColor="Gray" />
+                              <Span Text="  " />
+                              <Span Text="{Binding Speaker}" />
+                            </FormattedString>
+                          </Label.FormattedText>
+                        </Label>
+                        <Label Text="{Binding Text}" />
+                      </VerticalStackLayout>
+                    </DataTemplate>
+                  </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+              </VerticalStackLayout>
+            </Border>
+          </DataTemplate>
+        </BindableLayout.ItemTemplate>
+      </VerticalStackLayout>
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

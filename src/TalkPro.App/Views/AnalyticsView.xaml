@@ -1,0 +1,96 @@
+<UserControl x:Class="TalkPro.App.Views.AnalyticsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <UserControl.Resources>
+    <DataTemplate x:Key="StatRowTemplate">
+      <Grid Margin="0,2">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="200" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Text="{Binding Label}" Foreground="Gray" />
+        <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+      </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="BarRowTemplate">
+      <Grid Margin="0,1">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="110" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Text="{Binding Label}" Foreground="Gray" TextTrimming="CharacterEllipsis" />
+        <Rectangle Grid.Column="1" Height="12" Width="{Binding Width}" Fill="#FF1F3A5F" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="2" Text="{Binding Count}" Margin="6,0,0,0" />
+      </Grid>
+    </DataTemplate>
+    <Style x:Key="SubTitle" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,16,0,6" />
+    </Style>
+  </UserControl.Resources>
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="0,0,12,12">
+      <TextBlock Style="{StaticResource SectionTitle}">
+        <Run Text="대화 분석 — " /><Run Text="{Binding Title, Mode=OneWay}" />
+      </TextBlock>
+      <Border Background="#FFEFF4FA" Padding="10,6" Margin="0,0,0,8">
+        <TextBlock Text="{Binding ScopeNotice}" TextWrapping="Wrap" />
+      </Border>
+      <TextBlock Text="분석 중입니다… (이 PC 안에서만 계산합니다)" Foreground="Gray"
+                 Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+      <TextBlock Style="{StaticResource ErrorText}" Text="{Binding ErrorMessage}" />
+
+      <StackPanel Visibility="{Binding HasReport, Converter={StaticResource BoolToVis}}">
+        <TextBlock Style="{StaticResource SubTitle}" Text="개요" />
+        <ItemsControl ItemsSource="{Binding Overview}" ItemTemplate="{StaticResource StatRowTemplate}" />
+
+        <TextBlock Style="{StaticResource SubTitle}" Text="내 말투" />
+        <ItemsControl ItemsSource="{Binding Style}" ItemTemplate="{StaticResource StatRowTemplate}" />
+
+        <TextBlock Style="{StaticResource SubTitle}" Text="상대별 내 말투 (내가 답장한 상대 기준)" />
+        <ListView ItemsSource="{Binding Relationships}" MaxHeight="260">
+          <ListView.View>
+            <GridView>
+              <GridViewColumn Header="상대" Width="140" DisplayMemberBinding="{Binding Name}" />
+              <GridViewColumn Header="내 답장" Width="90" DisplayMemberBinding="{Binding Replies}" />
+              <GridViewColumn Header="평균 길이" Width="80" DisplayMemberBinding="{Binding MeanLength}" />
+              <GridViewColumn Header="ㅋ 사용" Width="70" DisplayMemberBinding="{Binding Laugh}" />
+              <GridViewColumn Header="말투" Width="300" DisplayMemberBinding="{Binding Register}" />
+            </GridView>
+          </ListView.View>
+        </ListView>
+
+        <TextBlock Style="{StaticResource SubTitle}" Text="내가 대화하는 시간대" />
+        <ItemsControl ItemsSource="{Binding ByHour}" ItemTemplate="{StaticResource BarRowTemplate}" />
+
+        <TextBlock Style="{StaticResource SubTitle}" Text="요일별" />
+        <ItemsControl ItemsSource="{Binding ByWeekday}" ItemTemplate="{StaticResource BarRowTemplate}" />
+
+        <TextBlock Style="{StaticResource SubTitle}" Text="내가 자주 쓴 단어" />
+        <ItemsControl ItemsSource="{Binding Keywords}" ItemTemplate="{StaticResource BarRowTemplate}" />
+
+        <TextBlock Style="{StaticResource SubTitle}" Text="월별 대화량" />
+        <ItemsControl ItemsSource="{Binding Timeline}" ItemTemplate="{StaticResource BarRowTemplate}" />
+
+        <TextBlock Style="{StaticResource SubTitle}" Text="활동이 많았던 날" />
+        <ItemsControl ItemsSource="{Binding BusyDays}" ItemTemplate="{StaticResource StatRowTemplate}" />
+
+        <TextBlock Style="{StaticResource SubTitle}" Text="기간별 내 말투 변화 (분기)" />
+        <ListView ItemsSource="{Binding Periods}" MaxHeight="260">
+          <ListView.View>
+            <GridView>
+              <GridViewColumn Header="기간" Width="80" DisplayMemberBinding="{Binding Period}" />
+              <GridViewColumn Header="메시지" Width="80" DisplayMemberBinding="{Binding Messages}" />
+              <GridViewColumn Header="평균 길이" Width="80" DisplayMemberBinding="{Binding MeanLength}" />
+              <GridViewColumn Header="ㅋ" Width="60" DisplayMemberBinding="{Binding Laugh}" />
+              <GridViewColumn Header="이모지" Width="60" DisplayMemberBinding="{Binding Emoji}" />
+              <GridViewColumn Header="말투" Width="300" DisplayMemberBinding="{Binding Register}" />
+            </GridView>
+          </ListView.View>
+        </ListView>
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

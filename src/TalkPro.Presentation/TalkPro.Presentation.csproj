@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    UI-agnostic presentation layer: ViewModels and application services (DD-019).
+    Must not reference WPF or network APIs (enforced by TalkPro.Architecture.Tests),
+    so it can be reused by a future MAUI client (DD-014).
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\TalkPro.Core\TalkPro.Core.csproj" />
+    <ProjectReference Include="..\TalkPro.Ingestion\TalkPro.Ingestion.csproj" />
+    <ProjectReference Include="..\TalkPro.Privacy\TalkPro.Privacy.csproj" />
+    <ProjectReference Include="..\TalkPro.Security\TalkPro.Security.csproj" />
+    <ProjectReference Include="..\TalkPro.Infrastructure\TalkPro.Infrastructure.csproj" />
+    <ProjectReference Include="..\TalkPro.Memory\TalkPro.Memory.csproj" />
+    <ProjectReference Include="..\TalkPro.Persona\TalkPro.Persona.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+</Project>

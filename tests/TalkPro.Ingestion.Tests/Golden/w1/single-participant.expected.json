@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "case": "single-participant",
+  "description": "One speaker, LF line endings.",
+  "format": "synthetic.windows.v1",
+  "timeZoneOffset": "\u002B09:00",
+  "expectedFailure": null,
+  "totalLines": 9,
+  "statistics": {
+    "messagesStarted": 3,
+    "systemMessages": 0,
+    "continuations": 1,
+    "metadata": 4,
+    "ignored": 1,
+    "malformed": 0,
+    "unsupported": 0
+  },
+  "participants": [
+    "UserA"
+  ],
+  "messages": [
+    {
+      "startLine": 6,
+      "timestamp": "2026-09-30T08:00:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "합성 테스트 메시지 101"
+    },
+    {
+      "startLine": 7,
+      "timestamp": "2026-09-30T08:01:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "합성 테스트 메시지 102"
+    },
+    {
+      "startLine": 8,
+      "timestamp": "2026-09-30T08:02:00\u002B09:00",
+      "speaker": "UserA",
+      "kind": "Text",
+      "systemEvent": "None",
+      "text": "합성 테스트 메시지 103\n혼자 쓴 둘째 줄"
+    }
+  ],
+  "issues": []
+}

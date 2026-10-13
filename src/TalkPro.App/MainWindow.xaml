@@ -1,9 +1,30 @@
 <Window x:Class="TalkPro.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="clr-namespace:TalkPro.App.ViewModels"
-        Title="TalkPro (작업명)" Width="1024" Height="680" MinWidth="720" MinHeight="480"
+        xmlns:vm="clr-namespace:TalkPro.Presentation.ViewModels;assembly=TalkPro.Presentation"
+        xmlns:views="clr-namespace:TalkPro.App.Views"
+        Title="TalkPro (작업명)" Width="1100" Height="760" MinWidth="820" MinHeight="560"
         WindowStartupLocation="CenterScreen">
+  <Window.Resources>
+    <DataTemplate DataType="{x:Type vm:DatasetsViewModel}">
+      <views:DatasetsView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ImportWizardViewModel}">
+      <views:ImportWizardView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:AnalyticsViewModel}">
+      <views:AnalyticsView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:LocalAiViewModel}">
+      <views:LocalAiView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ReplyDraftViewModel}">
+      <views:ReplyDraftView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:MemorySearchViewModel}">
+      <views:MemorySearchView />
+    </DataTemplate>
+  </Window.Resources>
   <DockPanel>
     <Border DockPanel.Dock="Top" Background="#FF1F3A5F" Padding="12,8">
       <TextBlock Foreground="White" Text="{Binding LocalOnlyNotice}" TextWrapping="Wrap" />
@@ -13,24 +34,28 @@
     </Border>
     <Grid Margin="16">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="260" />
+        <ColumnDefinition Width="200" />
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
-      <ListBox Grid.Column="0" ItemsSource="{Binding Sections}" IsEnabled="False">
-        <ListBox.ItemTemplate>
-          <DataTemplate DataType="{x:Type vm:NavigationSection}">
-            <StackPanel Margin="4,6">
-              <TextBlock FontWeight="SemiBold" Text="{Binding Title}" />
-              <TextBlock FontSize="11" Foreground="Gray" Text="{Binding AvailableIn}" />
-            </StackPanel>
-          </DataTemplate>
-        </ListBox.ItemTemplate>
-      </ListBox>
-      <StackPanel Grid.Column="1" Margin="24,0,0,0" VerticalAlignment="Center">
-        <TextBlock FontSize="20" FontWeight="SemiBold" Text="개발 중 (MVP1 · Phase 0)" />
-        <TextBlock Margin="0,8,0,0" Foreground="Gray" TextWrapping="Wrap"
-                   Text="기능은 단계별로 활성화됩니다. 현재 버전은 데이터를 가져오거나 저장하지 않습니다." />
+      <StackPanel Grid.Column="0">
+        <Button Content="데이터셋" Command="{Binding ShowDatasetsCommand}" Margin="0,0,0,6" HorizontalContentAlignment="Left" />
+        <Button Content="가져오기" Command="{Binding ShowImportCommand}" Margin="0,0,0,6" HorizontalContentAlignment="Left" />
+        <Button Content="답장 초안" Command="{Binding ShowDraftsCommand}" Margin="0,0,0,6" HorizontalContentAlignment="Left" />
+        <Button Content="기억 검색" Command="{Binding ShowMemoryCommand}" Margin="0,0,0,6" HorizontalContentAlignment="Left" />
+        <Button Content="로컬 AI" Command="{Binding ShowLocalAiCommand}" Margin="0,0,0,16" HorizontalContentAlignment="Left" />
+        <TextBlock Text="준비 중" Foreground="Gray" Margin="0,0,0,4" />
+        <ItemsControl ItemsSource="{Binding UpcomingSections}" IsEnabled="False">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type vm:NavigationSection}">
+              <StackPanel Margin="0,4">
+                <TextBlock Text="{Binding Title}" Foreground="Gray" />
+                <TextBlock FontSize="11" Foreground="Gray" Text="{Binding AvailableIn}" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
       </StackPanel>
+      <ContentControl Grid.Column="1" Margin="16,0,0,0" Content="{Binding CurrentPage}" />
     </Grid>
   </DockPanel>
 </Window>

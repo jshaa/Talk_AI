@@ -18,6 +18,7 @@
     <ProjectReference Include="..\TalkPro.Consent\TalkPro.Consent.csproj" />
     <ProjectReference Include="..\TalkPro.Security\TalkPro.Security.csproj" />
     <ProjectReference Include="..\TalkPro.Infrastructure\TalkPro.Infrastructure.csproj" />
+    <ProjectReference Include="..\TalkPro.Presentation\TalkPro.Presentation.csproj" />
   </ItemGroup>
 
   <ItemGroup>

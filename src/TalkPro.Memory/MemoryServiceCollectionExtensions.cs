@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using TalkPro.Core.Model;
 
 namespace TalkPro.Memory;
 
@@ -8,6 +9,7 @@ public static class MemoryServiceCollectionExtensions
     public static IServiceCollection AddTalkProMemory(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+        services.AddSingleton<ISessionizer>(_ => new ConversationSessionizer());
         return services;
     }
 }

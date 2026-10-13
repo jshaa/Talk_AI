@@ -3,7 +3,8 @@ using TalkPro.Core.Model;
 namespace TalkPro.Infrastructure.Storage;
 
 /// <summary>
-/// Local storage layout: <c>%LOCALAPPDATA%\TalkPro\{vault,logs,cache}</c>.
+/// Local storage layout: <c>%LOCALAPPDATA%\TalkPro\{vault,keys,logs,cache}</c>.
+/// Wrapped dataset keys live in <c>keys</c>, apart from <c>vault</c>, so a key can be destroyed first.
 /// Never Documents/Desktop/OneDrive, which may be synchronised to the cloud.
 /// </summary>
 public sealed class AppPaths
@@ -15,6 +16,7 @@ public sealed class AppPaths
         StoragePathPolicy.EnsureAllowed(root, forbiddenRoots);
         Root = Path.GetFullPath(root);
         Vault = Path.Combine(Root, "vault");
+        Keys = Path.Combine(Root, "keys");
         Logs = Path.Combine(Root, "logs");
         Cache = Path.Combine(Root, "cache");
     }
@@ -22,6 +24,8 @@ public sealed class AppPaths
     public string Root { get; }
 
     public string Vault { get; }
+
+    public string Keys { get; }
 
     public string Logs { get; }
 
@@ -40,9 +44,12 @@ public sealed class AppPaths
 
     public string DatasetDirectory(DatasetId datasetId) => Path.Combine(Vault, datasetId.ToString());
 
+    public string DatasetCacheDirectory(DatasetId datasetId) => Path.Combine(Cache, datasetId.ToString());
+
     public void EnsureCreated()
     {
         Directory.CreateDirectory(Vault);
+        Directory.CreateDirectory(Keys);
         Directory.CreateDirectory(Logs);
         Directory.CreateDirectory(Cache);
     }

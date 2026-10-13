@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../src/TalkPro.Core/TalkPro.Core.csproj" />
+    <ProjectReference Include="../../src/TalkPro.Memory/TalkPro.Memory.csproj" />
+  </ItemGroup>
+</Project>

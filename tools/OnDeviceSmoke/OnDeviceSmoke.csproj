@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Developer smoke check for the on-device runtime (DD-026): runs ONNX Runtime GenAI with a verified local model on
+    this PC using a fixed synthetic prompt. No network, no conversation data. Usage:
+    dotnet run (Release) with project tools/OnDeviceSmoke, optional argument: model directory.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>TalkPro.OnDeviceSmoke</AssemblyName>
+    <RootNamespace>TalkPro.Tools.OnDeviceSmoke</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TalkPro.Core\TalkPro.Core.csproj" />
+    <ProjectReference Include="..\..\src\TalkPro.Llm\TalkPro.Llm.csproj" />
+  </ItemGroup>
+</Project>
