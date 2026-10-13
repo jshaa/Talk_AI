@@ -5,3 +5,16 @@ tests/**/Golden/** -text -diff
 
 *.png binary
 *.ico binary
+
+# 말투 AI app and training scripts run on Linux CI / Kaggle: keep LF (gradlew fails with CRLF).
+apps/mimic/** text eol=lf
+training/** text eol=lf
+.github/** text eol=lf
+apps/mimic/android/gradlew.bat text eol=crlf
+# Binary rules must come after the eol rules above, which would otherwise override them.
+*.png binary
+*.ico binary
+*.jar binary
+*.wasm binary
+# Parser parity fixtures must keep exact bytes.
+training/fixtures/** -text

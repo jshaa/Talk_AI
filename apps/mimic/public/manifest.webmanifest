@@ -1,0 +1,16 @@
+{
+  "name": "말투 AI",
+  "short_name": "말투 AI",
+  "description": "카카오톡 대화로 상대방 말투를 흉내 내는 기기 안 AI",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e6f4f1",
+  "theme_color": "#14b8a6",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

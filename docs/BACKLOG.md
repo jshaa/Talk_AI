@@ -110,5 +110,15 @@ Integration, deletion, PII, parser and grounding regression evaluations · insta
 | M.6 | On-phone measurements (first draft latency, RAM, 10-minute thermal) on two reference devices; Share Intent import (needs Phase 1.8b real formats) | ⬜ |
 | M.7 | 16 KB page alignment: wait for an aligned `libmat.so` (ONNX Runtime GenAI) before any store build; on-device embeddings (smaller multilingual model) for meaning search on the phone | ⬜ |
 
+## 말투 AI — counterpart style imitation (DD-028) 🔄
+| # | Item | Status |
+|---|---|---|
+| P.1 | `apps/mimic` web/PWA: KakaoTalk PC/Android/iOS/Mac-CSV import in the browser, consent attestations, style summary, JSONL export | ✅ |
+| P.2 | On-device GGUF chat (wllama): local file or Hugging Face URL, fine-tuned or base+examples mode, AI labels, safety filter, Safari compat build, service worker for offline + threads | ✅ |
+| P.3 | `training/prepare_kakao.py` (byte-identical to the app) + `train_persona_unsloth.ipynb` (Unsloth QLoRA → GGUF Q4_K_M, 512 MB splits) | ✅ |
+| P.4 | Capacitor Android shell with COOP/COEP, no backup; CI builds the debug APK and deploys Pages | ✅ |
+| P.5 | Real-phone checks: first token / tokens per second / RAM on one Android and one iPhone with Qwen2.5-1.5B fine-tune; blind "sounds like them" rating | ⬜ |
+| P.6 | Native llama.cpp on Android (faster than WebView) and an iOS app (needs a Mac, DD-014) | ⬜ |
+
 ## Cross-cutting — Network policy (DD-014)
 Only model download, app update and model-version checks, implemented solely in `TalkPro.Llm`, with signed allow-list + SHA-256 and tests proving payloads carry no content. No conversation data ever leaves the device.
