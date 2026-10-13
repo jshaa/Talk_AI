@@ -36,7 +36,7 @@ def test_too_long_or_reply_less_samples_are_dropped():
 
 
 def test_auto_epochs():
-    assert [pt.auto_epochs(n) for n in (100, 2000, 9000)] == [3, 2, 1]
+    assert [pt.auto_epochs(n) for n in (100, 2000, 9000)] == [2, 2, 1]
 
 
 if __name__ == "__main__":

@@ -41,7 +41,7 @@ TUNNEL_METRICS = os.environ.get("TUNNEL_METRICS", "http://tunnel:20241")
 MAX_UPLOAD = int(os.environ.get("MAX_UPLOAD_MB", "64")) * 1024 * 1024
 TRAIN_SCRIPT = Path(os.environ.get("TRAIN_SCRIPT") or Path(__file__).with_name("persona_train.py"))
 ORIGINS = [o for o in os.environ.get("ALLOW_ORIGINS", "https://jshaa.github.io,https://localhost,http://localhost:5173,http://localhost:4173").split(",") if o]
-BASES = {"qwen2.5-0.5b", "qwen2.5-1.5b", "qwen2.5-3b"}
+BASES = {"qwen2.5-0.5b", "qwen2.5-1.5b", "qwen2.5-3b", "qwen3-4b"}
 ID_CHARS = set("0123456789abcdef")
 
 

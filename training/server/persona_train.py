@@ -2,8 +2,8 @@
 """LoRA fine-tune of one person's speaking style + GGUF export, run by server.py on the user's PC.
 
 Input is the chat JSONL from the 말투 AI app (imitated person = assistant). The model is a ChatML
-(Qwen2.5) instruct model; only the assistant turns are trained. Output: <out>/persona-q4_k_m.gguf and,
-when larger than 512 MB, split parts for the web app. Intermediate files (uploaded data, merged
+(Qwen2.5 / Qwen3-Instruct) model; only the assistant turns are trained. Output: <out>/persona-<quant>.gguf and,
+when larger than 512 MB, split parts for the web app (Q6_K for models up to 1.5B). Intermediate files (uploaded data, merged
 weights, f16 GGUF) are deleted when the job ends.
 
 GPU (NVIDIA, CUDA): Unsloth 4-bit QLoRA. CPU: transformers + PEFT LoRA (slow; 0.5B recommended).
@@ -32,7 +32,11 @@ MODELS = {
     "qwen2.5-0.5b": ("unsloth/Qwen2.5-0.5B-Instruct", "Qwen/Qwen2.5-0.5B-Instruct"),
     "qwen2.5-1.5b": ("unsloth/Qwen2.5-1.5B-Instruct", "Qwen/Qwen2.5-1.5B-Instruct"),
     "qwen2.5-3b": ("unsloth/Qwen2.5-3B-Instruct", "Qwen/Qwen2.5-3B-Instruct"),
+    # Non-thinking Qwen3 (Apache-2.0): far better Korean and context than Qwen2.5 at a similar size.
+    "qwen3-4b": ("unsloth/Qwen3-4B-Instruct-2507", "Qwen/Qwen3-4B-Instruct-2507"),
 }
+# Small models lose noticeably more quality at 4-bit, so they get 6-bit (still ~0.5/1.3 GB).
+QUANT = {"qwen2.5-0.5b": "Q6_K", "qwen2.5-1.5b": "Q6_K"}
 TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
 
@@ -72,7 +76,8 @@ def encode_sample(tokenize, messages: list[dict], max_len: int) -> dict | None:
 
 
 def auto_epochs(replies: int) -> int:
-    return 3 if replies < 1000 else 2 if replies < 5000 else 1
+    # More epochs made small models memorise whole lines instead of answering in context.
+    return 2 if replies < 3000 else 1
 
 
 def run(cmd: list[str]) -> None:
@@ -81,19 +86,20 @@ def run(cmd: list[str]) -> None:
         raise RuntimeError(f"{Path(cmd[0]).name} failed:\n{proc.stderr[-2000:]}")
 
 
-def export_gguf(merged: Path, out: Path, status: Status) -> list[str]:
+def export_gguf(merged: Path, out: Path, status: Status, quant: str = "Q4_K_M") -> list[str]:
     status.update(stage="converting", message="GGUF 변환 중")
     f16 = out / "model-f16.gguf"
-    final = out / "persona-q4_k_m.gguf"
+    stem = f"persona-{quant.lower()}"
+    final = out / f"{stem}.gguf"
     run([sys.executable, str(LLAMA_CPP / "convert_hf_to_gguf.py"), str(merged), "--outfile", str(f16), "--outtype", "f16"])
-    status.update(message="Q4_K_M 양자화 중")
-    run([str(LLAMA_CPP / "build/bin/llama-quantize"), str(f16), str(final), "Q4_K_M"])
+    status.update(message=f"{quant} 양자화 중")
+    run([str(LLAMA_CPP / "build/bin/llama-quantize"), str(f16), str(final), quant])
     f16.unlink(missing_ok=True)
     files = [final.name]
     if final.stat().st_size > SPLIT_BYTES:
         status.update(message="웹용으로 나누는 중")
-        run([str(LLAMA_CPP / "build/bin/llama-gguf-split"), "--split", "--split-max-size", "512M", str(final), str(out / "persona-q4_k_m")])
-        files += sorted(Path(p).name for p in glob.glob(str(out / "persona-q4_k_m-*-of-*.gguf")))
+        run([str(LLAMA_CPP / "build/bin/llama-gguf-split"), "--split", "--split-max-size", "512M", str(final), str(out / stem)])
+        files += sorted(Path(p).name for p in glob.glob(str(out / f"{stem}-*-of-*.gguf")))
     return files
 
 
@@ -162,7 +168,7 @@ def train(args: argparse.Namespace, status: Status) -> list[str]:
             gradient_accumulation_steps=accum,
             num_train_epochs=epochs,
             max_steps=args.max_steps or -1,
-            learning_rate=2e-4,
+            learning_rate=1e-4,
             warmup_steps=max(1, round(total * 0.03)),  # int works in transformers 4 and 5
             lr_scheduler_type="cosine",
             weight_decay=0.01,
@@ -187,7 +193,7 @@ def train(args: argparse.Namespace, status: Status) -> list[str]:
         tokenizer.save_pretrained(str(merged))
     del trainer, model
     try:
-        return export_gguf(merged, out, status)
+        return export_gguf(merged, out, status, QUANT.get(args.base, "Q4_K_M"))
     finally:
         shutil.rmtree(merged, ignore_errors=True)
         shutil.rmtree(out / "checkpoints", ignore_errors=True)

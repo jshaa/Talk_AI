@@ -88,9 +88,11 @@ export class Engine {
     const stream = (await w.createChatCompletion({
       messages,
       max_tokens: opt.maxTokens ?? 160,
-      temperature: opt.temperature ?? 0.8,
+      // Small fine-tuned models drift off-topic at high temperature; min_p cuts the incoherent tail.
+      temperature: opt.temperature ?? 0.6,
       top_p: 0.9,
       top_k: 40,
+      min_p: 0.05,
       penalty_repeat: 1.1,
       stream: true,
       abortSignal: opt.signal,

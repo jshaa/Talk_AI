@@ -53,5 +53,5 @@ jobs:
           cat /tmp/job/status.json
           grep -q '"stage": "done"' /tmp/job/status.json
           ls -la /tmp/job/out
-          test -s /tmp/job/out/persona-q4_k_m.gguf
+          test -s /tmp/job/out/persona-q6_k.gguf
           test ! -e /tmp/job/data.jsonl

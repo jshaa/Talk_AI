@@ -23,6 +23,8 @@ export interface DatasetOptions {
   maxTurns?: number;
   maxSampleChars?: number;
   maxTurnChars?: number;
+  /** Turns repeated at the start of the next window so every reply is learned with prior context. */
+  overlapTurns?: number;
 }
 
 export interface DatasetResult {
@@ -33,7 +35,7 @@ export interface DatasetResult {
   assistantTurns: number;
 }
 
-const DEFAULTS = { sessionGapMinutes: 180, maxTurns: 12, maxSampleChars: 1500, maxTurnChars: 400 };
+const DEFAULTS = { sessionGapMinutes: 180, maxTurns: 12, maxSampleChars: 1500, maxTurnChars: 400, overlapTurns: 4 };
 
 function minutes(time: string): number {
   const [d, t] = time.split('T');
@@ -109,8 +111,11 @@ export function buildDataset(messages: ChatMessage[], options: DatasetOptions): 
       let window = turns.slice(start, end);
       while (window.length > 0 && window[window.length - 1].role !== 'assistant') window = window.slice(0, -1);
       if (window.length >= 2) samples.push({ messages: [system, ...window] });
-      start = end;
-      while (start < turns.length && turns[start].role !== 'user') start++;
+      if (end >= turns.length) break;
+      // The next window starts a few turns back (on a user turn) so its first reply keeps its context.
+      let next = Math.max(start + 1, end - opt.overlapTurns);
+      while (next < turns.length && turns[next].role !== 'user') next++;
+      start = next;
     }
   }
   return { samples, pairs, sessions: segments.length, assistantTurns };

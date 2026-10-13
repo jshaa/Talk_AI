@@ -349,6 +349,13 @@
 - **App**: ② tab "내 PC로 학습" uploads the analysed dataset, polls progress (stage, step/total, loss), then downloads the GGUF with the bearer token (cached in the browser), switches to fine-tuned mode and sets the persona name. An unfinished job is resumed after a reload.
 - **Verified here**: API tests with a fake trainer (auth, validation, path traversal, single job, cancel, deletion, CORS, pairing page); label-masking tests; a real CPU run on a tiny random Qwen2 model with the real Qwen2 vocabulary (train → merge → convert → Q4_K_M); and a browser run of LAN mode (QR link → analyse → 학습 시작 → progress → GGUF auto-load → chat). CI builds the image and fine-tunes Qwen2.5-0.5B for two CPU steps inside it. **Not verified**: the GPU/Unsloth path (no GPU here), the Cloudflare tunnel, and Docker Desktop on Windows.
 
+**DD-030 Reply coherence tuning (owner report 2026-10-13: a Colab-trained 1.5B model answered off-context).**
+- **Data**: windows inside a long conversation now overlap by 4 turns (`overlapTurns`), so the first reply of each window is trained with its preceding exchange instead of starting cold. TS and Python stay byte-identical (`training/fixtures/long.txt` → `expected-long.jsonl`).
+- **Training**: automatic epochs 2 (< 3,000 replies) or 1, learning rate 1e-4 (was up to 3 epochs at 2e-4, which made small models repeat memorised lines). Models up to 1.5B are exported as Q6_K instead of Q4_K_M.
+- **Base model**: Qwen3-4B-Instruct-2507 (Apache-2.0, ChatML, non-thinking) added and recommended for the Android app and PC training; Qwen2.5-1.5B stays the iPhone-web option. The notebook uses the model's own ChatML template instead of forcing Qwen2.5's.
+- **Inference**: temperature 0.6 (was 0.8) and min_p 0.05.
+- **Not verified**: the quality gain itself (needs the owner's data and a GPU); Qwen3-4B training/export was not run here.
+
 ## Open issues
 
 - **[DESIGN ISSUE] CP949 Private Use Area mapping.**
