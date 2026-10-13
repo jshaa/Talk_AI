@@ -40,10 +40,10 @@ jobs:
         run: docker build -f training/server/Dockerfile -t maltu-ai-trainer:ci .
       - name: Server starts and answers
         run: |
-          docker run -d --name t -p 8000:8000 -e TRAINER_TOKEN=ci maltu-ai-trainer:ci
+          docker run -d --name maltu-smoke -p 8000:8000 -e TRAINER_TOKEN=ci maltu-ai-trainer:ci
           for i in $(seq 30); do curl -sf localhost:8000/api/health && break; sleep 2; done
           curl -sf localhost:8000/ | grep -q '말투 AI'
-          docker rm -f t
+          docker rm -f maltu-smoke
       - name: CPU fine-tune smoke test (Qwen2.5-0.5B, 2 steps, GGUF export)
         run: |
           mkdir -p /tmp/job/out && chmod -R 777 /tmp/job
