@@ -13,7 +13,7 @@ FAKE.write_text(
     """
 import argparse, json, pathlib, time
 ap = argparse.ArgumentParser(); [ap.add_argument(a) for a in ("--data","--out","--status","--base","--epochs")]
-a = ap.parse_args()
+a = ap.parse_known_args()[0]
 st = pathlib.Path(a.status)
 st.write_text(json.dumps({"stage": "training", "step": 1, "total": 2}))
 time.sleep(float(__import__("os").environ.get("FAKE_SLEEP", "0.2")))
