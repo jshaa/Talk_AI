@@ -6,7 +6,8 @@ Input is the chat JSONL from the 말투 AI app (imitated person = assistant). Th
 when larger than 512 MB, split parts for the web app (Q6_K for models up to 1.5B). Intermediate files (uploaded data, merged
 weights, f16 GGUF) are deleted when the job ends.
 
-GPU (NVIDIA, CUDA): Unsloth 4-bit QLoRA. CPU: transformers + PEFT LoRA (slow; 0.5B recommended).
+GPU (NVIDIA, CUDA): Unsloth 4-bit QLoRA, or PEFT LoRA in bf16/fp16 when Unsloth is not installed (native
+Windows). CPU: transformers + PEFT LoRA in fp32 (slow; 0.5B recommended).
 Progress is written to --status as JSON for the server to relay.
 """
 from __future__ import annotations
@@ -24,6 +25,18 @@ import traceback
 from pathlib import Path
 
 IM_START, IM_END = "<|im_start|>", "<|im_end|>"
+
+
+def _transformers_major() -> int:
+    try:
+        from importlib.metadata import version
+
+        return int(version("transformers").split(".")[0])
+    except Exception:
+        return 4
+
+
+_TF5 = _transformers_major() >= 5  # "torch_dtype" was renamed to "dtype"
 LLAMA_CPP = Path(os.environ.get("LLAMA_CPP_DIR", "/opt/llama.cpp"))
 SPLIT_BYTES = 512 * 1024 * 1024
 
@@ -41,8 +54,10 @@ TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj"
 
 
 class Status:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, console: bool = False):
         self.path = path
+        self.console = console
+        self.last = ""
         self.data: dict = {"stage": "starting", "step": 0, "total": 0, "loss": None, "message": "", "started": time.time()}
 
     def update(self, **kw) -> None:
@@ -50,6 +65,14 @@ class Status:
         tmp = self.path.with_suffix(".tmp")
         tmp.write_text(json.dumps(self.data, ensure_ascii=False), encoding="utf-8")
         os.replace(tmp, self.path)
+        if self.console:
+            d = self.data
+            line = f"[{d['stage']}] {d.get('message', '')}"
+            if d["stage"] == "training" and d.get("total"):
+                line += f" {d.get('step', 0)}/{d['total']}" + (f" loss={d['loss']}" if d.get("loss") is not None else "")
+            if line != self.last:
+                print(line, flush=True)
+                self.last = line
 
 
 def read_samples(path: Path) -> list[list[dict]]:
@@ -80,6 +103,18 @@ def auto_epochs(replies: int) -> int:
     return 2 if replies < 3000 else 1
 
 
+def tool(name: str) -> str:
+    """llama.cpp binary from a source build (build/bin), a release zip (flat or bin/) or PATH; .exe on Windows."""
+    for d in (LLAMA_CPP / "build" / "bin", LLAMA_CPP / "bin", LLAMA_CPP):
+        for n in (name, f"{name}.exe"):
+            if (d / n).is_file():
+                return str(d / n)
+    found = shutil.which(name)
+    if not found:
+        raise RuntimeError(f"{name}을(를) 찾지 못했습니다. llama.cpp 릴리스를 받아 LLAMA_CPP_DIR 환경변수로 폴더를 지정하세요.")
+    return found
+
+
 def run(cmd: list[str]) -> None:
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
@@ -91,14 +126,17 @@ def export_gguf(merged: Path, out: Path, status: Status, quant: str = "Q4_K_M") 
     f16 = out / "model-f16.gguf"
     stem = f"persona-{quant.lower()}"
     final = out / f"{stem}.gguf"
-    run([sys.executable, str(LLAMA_CPP / "convert_hf_to_gguf.py"), str(merged), "--outfile", str(f16), "--outtype", "f16"])
+    convert = LLAMA_CPP / "convert_hf_to_gguf.py"
+    if not convert.is_file():
+        raise RuntimeError(f"{convert} 가 없습니다. llama.cpp 소스를 받아 LLAMA_CPP_DIR로 지정하세요.")
+    run([sys.executable, str(convert), str(merged), "--outfile", str(f16), "--outtype", "f16"])
     status.update(message=f"{quant} 양자화 중")
-    run([str(LLAMA_CPP / "build/bin/llama-quantize"), str(f16), str(final), quant])
+    run([tool("llama-quantize"), str(f16), str(final), quant])
     f16.unlink(missing_ok=True)
     files = [final.name]
     if final.stat().st_size > SPLIT_BYTES:
         status.update(message="웹용으로 나누는 중")
-        run([str(LLAMA_CPP / "build/bin/llama-gguf-split"), "--split", "--split-max-size", "512M", str(final), str(out / stem)])
+        run([tool("llama-gguf-split"), "--split", "--split-max-size", "512M", str(final), str(out / stem)])
         files += sorted(Path(p).name for p in glob.glob(str(out / f"{stem}-*-of-*.gguf")))
     return files
 
@@ -108,13 +146,22 @@ def train(args: argparse.Namespace, status: Status) -> list[str]:
     from transformers import DataCollatorForSeq2Seq, Trainer, TrainerCallback, TrainingArguments
 
     gpu = torch.cuda.is_available() and not args.cpu
+    use_unsloth = False
+    if gpu:
+        try:
+            import unsloth  # noqa: F401  (Linux/WSL2; on native Windows usually not installed)
+
+            use_unsloth = True
+        except ImportError:
+            print("unsloth 없음: GPU에서 PEFT LoRA로 학습합니다(메모리를 더 씁니다).", flush=True)
     gpu_repo, cpu_repo = MODELS[args.base]
     out = Path(args.out)
     merged = out / "merged"
     max_len = args.max_len or (1536 if gpu else 1024)
+    repo = gpu_repo if use_unsloth else (args.model_path or cpu_repo)
 
-    status.update(stage="downloading", message=f"기본 모델 준비 중 ({gpu_repo if gpu else cpu_repo})", device="cuda" if gpu else "cpu")
-    if gpu:
+    status.update(stage="downloading", message=f"기본 모델 준비 중 ({repo})", device="cuda" if gpu else "cpu")
+    if use_unsloth:
         from unsloth import FastLanguageModel
 
         model, tokenizer = FastLanguageModel.from_pretrained(model_name=gpu_repo, max_seq_length=max_len, load_in_4bit=True)
@@ -126,10 +173,17 @@ def train(args: argparse.Namespace, status: Status) -> list[str]:
         from peft import LoraConfig, get_peft_model
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
-        repo = args.model_path or cpu_repo
         tokenizer = AutoTokenizer.from_pretrained(repo)
-        model = AutoModelForCausalLM.from_pretrained(repo, torch_dtype=torch.float32)
+        dtype = (torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16) if gpu else torch.float32
+        model = AutoModelForCausalLM.from_pretrained(repo, dtype=dtype) if _TF5 else AutoModelForCausalLM.from_pretrained(repo, torch_dtype=dtype)
+        if gpu:
+            model = model.to("cuda")
+            model.gradient_checkpointing_enable()
+            model.enable_input_require_grads()
         model = get_peft_model(model, LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05, target_modules=TARGET_MODULES, task_type="CAUSAL_LM"))
+        for p in model.parameters():  # LoRA weights in fp32 so fp16 mixed precision can unscale them
+            if p.requires_grad:
+                p.data = p.data.float()
 
     template = getattr(tokenizer, "chat_template", None) or ""
     if IM_START not in template:
@@ -137,7 +191,8 @@ def train(args: argparse.Namespace, status: Status) -> list[str]:
 
     data_path = Path(args.data)
     samples = read_samples(data_path)
-    data_path.unlink(missing_ok=True)  # the conversation text is no longer needed on disk
+    if args.delete_data:
+        data_path.unlink(missing_ok=True)  # server mode: the conversation text is no longer needed on disk
     tokenize = lambda s: tokenizer(s, add_special_tokens=False).input_ids  # noqa: E731
     encoded = [e for e in (encode_sample(tokenize, s, max_len) for s in samples) if e is not None]
     if not encoded:
@@ -177,7 +232,7 @@ def train(args: argparse.Namespace, status: Status) -> list[str]:
             report_to="none",
             fp16=gpu and not bf16,
             bf16=bf16,
-            optim="adamw_8bit" if gpu else "adamw_torch",
+            optim="adamw_8bit" if use_unsloth else "adamw_torch",
             use_cpu=not gpu,
             seed=3407,
             remove_unused_columns=False,
@@ -186,7 +241,7 @@ def train(args: argparse.Namespace, status: Status) -> list[str]:
     trainer.train()
 
     status.update(stage="merging", message="LoRA 병합 중")
-    if gpu:
+    if use_unsloth:
         model.save_pretrained_merged(str(merged), tokenizer, save_method="merged_16bit")
     else:
         model.merge_and_unload().save_pretrained(str(merged), safe_serialization=True)
@@ -201,9 +256,10 @@ def train(args: argparse.Namespace, status: Status) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--data", required=True)
-    ap.add_argument("--out", required=True)
-    ap.add_argument("--status", required=True)
+    ap.add_argument("--data", required=True, help="persona_train.jsonl from the app or prepare_kakao.py")
+    ap.add_argument("--out", default="persona_out", help="output folder (default: persona_out)")
+    ap.add_argument("--status", help="progress JSON (default: <out>/status.json)")
+    ap.add_argument("--delete-data", action="store_true", help="delete --data once read (used by server.py)")
     ap.add_argument("--base", choices=sorted(MODELS), default="qwen2.5-1.5b")
     ap.add_argument("--epochs", type=int, default=0, help="0 = automatic by number of replies")
     ap.add_argument("--max-len", type=int, default=0)
@@ -211,18 +267,21 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--cpu", action="store_true", help="force CPU")
     ap.add_argument("--model-path", help="local model directory instead of the Hub (CPU path, testing)")
     args = ap.parse_args(argv)
-
-    status = Status(Path(args.status))
+    Path(args.out).mkdir(parents=True, exist_ok=True)
+    status = Status(Path(args.status or Path(args.out) / "status.json"), console=sys.stdout.isatty() or not args.status)
     try:
         files = train(args, status)
         status.update(stage="done", files=files, message="완료")
+        if not args.status:
+            print("\n결과:", *(str(Path(args.out) / f) for f in files), sep="\n  ")
         return 0
     except Exception as e:  # reported to the app; the traceback stays in the server log only
         traceback.print_exc()
         status.update(stage="error", message=str(e)[:500])
         return 1
     finally:
-        Path(args.data).unlink(missing_ok=True)
+        if args.delete_data:
+            Path(args.data).unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

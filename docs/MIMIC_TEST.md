@@ -66,6 +66,34 @@ PC에서 **Docker Desktop**으로 학습 서버를 켜 두면, 휴대폰 앱의 
 - 올린 대화는 학습이 읽자마자 PC에서도 지워지고, PC에는 **가장 최근 모델 1개만** 남습니다(Docker 볼륨 `trainer-data`). 완전히 지우려면 `docker compose down -v`.
 - 서버 끄기: `docker compose down` · 로그: `docker compose logs -f trainer`
 
+### 3-2. (대안) Docker 없이 PC에서 Python으로 직접 학습
+
+Colab 사용량 제한에 걸렸거나 Docker를 쓰기 싫을 때. 같은 학습 스크립트(`training/server/persona_train.py`)를 직접 실행합니다.
+
+| PC | 방식 | 권장 모델 | 예상 시간(답장 2천 개) |
+|---|---|---|---|
+| NVIDIA GPU + **WSL2(Ubuntu)** 또는 Linux | Unsloth 4bit (가장 빠름) | `qwen3-4b` / `qwen2.5-1.5b` | 10~30분 |
+| NVIDIA GPU + Windows 기본 Python | PEFT (unsloth 없이 자동) | `qwen2.5-1.5b` (VRAM 8GB↑), `qwen3-4b` (16GB↑) | 20~60분 |
+| GPU 없음 | CPU (느림) | `qwen2.5-0.5b` | 1~3시간 이상 |
+
+1. Python 3.10~3.12 설치 → 저장소 받기: `git clone https://github.com/jshaa/Talk_AI.git` → `cd Talk_AI`
+2. PyTorch 설치(https://pytorch.org 에서 내 환경 명령 복사) → `pip install -r training/requirements-local.txt`
+   - NVIDIA GPU + WSL2/Linux라면 추가로 `pip install unsloth` (없어도 GPU면 PEFT로, GPU가 없으면 CPU로 자동 학습)
+3. GGUF 변환 도구 준비:
+   - `git clone --depth 1 https://github.com/ggml-org/llama.cpp` (변환 스크립트)
+   - https://github.com/ggml-org/llama.cpp/releases 에서 내 OS용 zip(Windows: `llama-…-bin-win-cpu-x64.zip`)을 받아 `llama.cpp\bin` 폴더에 압축 해제
+   - 환경변수 지정: PowerShell `$env:LLAMA_CPP_DIR="$PWD\llama.cpp"` · bash `export LLAMA_CPP_DIR=$PWD/llama.cpp`
+   - `pip install -r llama.cpp/requirements/requirements-convert_hf_to_gguf.txt` 는 **하지 마세요**(이미 설치한 PyTorch를 바꿉니다). 위 2번 패키지로 충분합니다.
+4. 앱 ① 탭에서 받은 `persona_train.jsonl`로 학습:
+   ```
+   python training/server/persona_train.py --data persona_train.jsonl --base qwen2.5-0.5b
+   ```
+   - `--base`: `qwen3-4b`(권장, GPU) · `qwen2.5-1.5b` · `qwen2.5-0.5b`(CPU) · `--cpu`로 CPU 강제
+   - 진행 상황이 화면에 표시되고, 결과는 `persona_out/persona-q6_k.gguf`(또는 `-q4_k_m`)
+5. 만든 `.gguf`를 휴대폰으로 옮겨 앱 ② 탭 **"파인튜닝한 내 모델" → "이 기기의 GGUF 선택"** (따라할 이름은 ① 탭에서 쓴 이름과 같게).
+
+입력 JSONL은 지우지 않으니, 학습이 끝나면 직접 삭제하세요.
+
 ### 3-1. (대안) Kaggle/Colab 무료 GPU
 
 PC에 GPU가 없고 빠르게 하고 싶다면: ① 탭 **학습 데이터 내려받기** → https://colab.research.google.com/github/jshaa/Talk_AI/blob/master/training/train_persona_unsloth.ipynb → 런타임 **T4 GPU** → JSONL 업로드 → 모두 실행 → 만들어진 `.gguf`를 휴대폰으로 옮겨 ② 탭 **"이 기기의 GGUF 선택"** (따라할 이름은 학습 때와 같게). 이 경우 대화가 Google 서버로 전송됩니다.

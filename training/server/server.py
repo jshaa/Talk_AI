@@ -186,7 +186,7 @@ async def create_job(request: Request) -> dict:
     job = {"id": job_id, "base": base, "persona": persona, "samples": samples, "replies": replies, "created": time.time()}
     (d / "job.json").write_text(json.dumps(job, ensure_ascii=False), encoding="utf-8")
     cmd = [sys.executable, str(TRAIN_SCRIPT), "--data", str(d / "data.jsonl"), "--out", str(d / "out"),
-           "--status", str(d / "status.json"), "--base", base, "--epochs", str(epochs)]
+           "--status", str(d / "status.json"), "--base", base, "--epochs", str(epochs), "--delete-data"]
     cmd += json.loads(os.environ.get("TRAINER_EXTRA_ARGS", "[]"))
     log = open(d / "train.log", "w")
     PROCS[job_id] = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)

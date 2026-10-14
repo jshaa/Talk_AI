@@ -49,7 +49,7 @@ jobs:
           mkdir -p /tmp/job/out && chmod -R 777 /tmp/job
           for i in $(seq 20); do cat training/fixtures/expected.jsonl; done > /tmp/job/data.jsonl
           docker run --rm -v /tmp/job:/job maltu-ai-trainer:ci python /app/persona_train.py \
-            --data /job/data.jsonl --out /job/out --status /job/status.json --base qwen2.5-0.5b --cpu --max-steps 2
+            --data /job/data.jsonl --out /job/out --status /job/status.json --base qwen2.5-0.5b --cpu --max-steps 2 --delete-data
           cat /tmp/job/status.json
           grep -q '"stage": "done"' /tmp/job/status.json
           ls -la /tmp/job/out

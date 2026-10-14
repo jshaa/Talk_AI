@@ -1,0 +1,11 @@
+# Train on your own PC without Docker:  python training/server/persona_train.py --data persona_train.jsonl
+# 1) PyTorch first (https://pytorch.org): NVIDIA GPU -> CUDA build, otherwise the CPU build.
+# 2) pip install -r training/requirements-local.txt
+# 3) Optional, NVIDIA GPU on Linux/WSL2: pip install unsloth (faster; without it a GPU trains with PEFT, else the CPU)
+transformers>=4.51
+peft>=0.15
+accelerate>=1.6
+sentencepiece
+protobuf<5
+numpy
+safetensors
