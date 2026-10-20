@@ -387,6 +387,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--list", action="store_true", help="list speakers and exit")
     ap.add_argument("-o", "--output", type=Path, default=Path("persona_train.jsonl"))
     ap.add_argument("--session-gap", type=int, default=180, help="minutes of silence that start a new conversation")
+    ap.add_argument("--exclude", nargs="*", default=[], help="speakers to drop, e.g. bots, so a 1:1 chat is not treated as a group")
     args = ap.parse_args(argv)
 
     all_samples: list[dict] = []
@@ -400,6 +401,7 @@ def main(argv: list[str] | None = None) -> int:
             for name, count in speaker_counts(messages):
                 print(f"  {count:7d}  {name}")
             continue
+        messages = [m for m in messages if m.speaker not in set(args.exclude)]
         all_samples += build_samples(messages, args.target, args.name, session_gap_minutes=args.session_gap)
 
     if args.list or not args.target:

@@ -18,11 +18,27 @@ st = pathlib.Path(a.status)
 st.write_text(json.dumps({"stage": "training", "step": 1, "total": 2}))
 time.sleep(float(__import__("os").environ.get("FAKE_SLEEP", "0.2")))
 pathlib.Path(a.data).unlink()
-(pathlib.Path(a.out) / "persona-q4_k_m.gguf").write_bytes(b"GGUF" + b"\\0" * 60)
-st.write_text(json.dumps({"stage": "done", "files": ["persona-q4_k_m.gguf"]}))
+if a.base == "qwen3-4b-pc":
+    (pathlib.Path(a.out) / "adapter").mkdir()
+    st.write_text(json.dumps({"stage": "done", "files": [], "adapter": "adapter"}))
+else:
+    (pathlib.Path(a.out) / "persona-q4_k_m.gguf").write_bytes(b"GGUF" + b"\\0" * 60)
+    st.write_text(json.dumps({"stage": "done", "files": ["persona-q4_k_m.gguf"]}))
 """,
     encoding="utf-8",
 )
+FAKE_CHAT = TMP / "fake_chat.py"
+FAKE_CHAT.write_text(
+    """
+import json, sys
+print(json.dumps({"ready": True}), flush=True)
+for line in sys.stdin:
+    req = json.loads(line)
+    print(json.dumps({"reply": "응 " + req["messages"][-1]["content"]}, ensure_ascii=False), flush=True)
+""",
+    encoding="utf-8",
+)
+os.environ.update(CHAT_WORKER=str(FAKE_CHAT))
 os.environ.update(TRAINER_DATA=str(TMP / "data"), TRAINER_TOKEN="secret", TRAIN_SCRIPT=str(FAKE), TRAINER_WEB=str(TMP / "noweb"), PUBLIC_URL="https://abc.trycloudflare.com")
 sys.path.insert(0, str(HERE))
 
@@ -81,6 +97,29 @@ def test_job_lifecycle_deletes_upload_and_serves_model():
     assert not (server.JOBS / second["id"]).exists()
 
 
+def test_latest_job_lets_a_phone_load_a_model_trained_from_the_pc():
+    job = client.post("/api/jobs", json={"jsonl": SAMPLE, "persona": "친구"}, headers=AUTH).json()
+    wait_done(job["id"])
+    assert client.get("/api/jobs/latest").status_code == 401
+    latest = client.get("/api/jobs/latest", headers=AUTH).json()
+    assert latest["id"] == job["id"] and latest["stage"] == "done" and latest["persona"] == "친구"
+
+
+def test_pc_chat_with_a_pc_adapter():
+    gguf = client.post("/api/jobs", json={"jsonl": SAMPLE}, headers=AUTH).json()
+    assert wait_done(gguf["id"])["chat"] is False
+    msgs = {"messages": [{"role": "system", "content": "s"}, {"role": "user", "content": "뭐해"}]}
+    assert client.post("/api/chat", json=msgs, headers=AUTH).status_code == 404  # no PC model yet
+    job = client.post("/api/jobs", json={"jsonl": SAMPLE, "base": "qwen3-4b-pc"}, headers=AUTH).json()
+    done = wait_done(job["id"])
+    assert done["chat"] is True and done["files"] == []
+    assert client.post("/api/chat", json=msgs).status_code == 401
+    assert client.post("/api/chat", json={"messages": [{"role": "tool", "content": "x"}]}, headers=AUTH).status_code == 400
+    r = client.post("/api/chat", json=msgs, headers=AUTH)
+    assert r.status_code == 200 and r.json() == {"reply": "응 뭐해"}
+    server.CHAT.stop()
+
+
 def test_one_job_at_a_time_and_cancel():
     os.environ["FAKE_SLEEP"] = "5"
     try:
@@ -106,6 +145,8 @@ def test_cors_allows_app_origins_only():
 def test_pairing_page_has_qr_link():
     html = TestClient(server.pair).get("/").text
     assert "<svg" in html and "secret" in html and "https://abc.trycloudflare.com" in html
+    link = TestClient(server.pair).get("/link").text
+    assert link.endswith("#trainer=https%3A%2F%2Fabc.trycloudflare.com&token=secret") and link.replace("&", "&amp;") in html
 
 
 if __name__ == "__main__":

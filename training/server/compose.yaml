@@ -17,7 +17,8 @@ services:
     volumes:
       - trainer-data:/data     # token, base-model cache, newest job's GGUF
     environment:
-      APP_URL: https://jshaa.github.io/Talk_AI/
+      # empty = the QR opens the app served by this PC through the tunnel; or https://jshaa.github.io/Talk_AI/
+      APP_URL: ${APP_URL:-}
     deploy:
       resources:
         reservations:

@@ -33,7 +33,7 @@ COPY training/server/requirements.txt /app/requirements.txt
 RUN pip install -r /app/requirements.txt
 COPY --from=llama /opt/out /opt/llama.cpp
 COPY --from=web /src/apps/mimic/dist /app/web
-COPY training/server/server.py training/server/persona_train.py /app/
+COPY training/server/server.py training/server/persona_train.py training/server/chat_worker.py /app/
 ENV LLAMA_CPP_DIR=/opt/llama.cpp TRAINER_DATA=/data TRAINER_WEB=/app/web HF_HOME=/data/hf \
     HF_HUB_DISABLE_TELEMETRY=1 TRANSFORMERS_NO_ADVISORY_WARNINGS=1 UNSLOTH_DISABLE_STATISTICS=1
 VOLUME /data

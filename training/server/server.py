@@ -20,6 +20,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 import uuid
@@ -29,19 +30,22 @@ from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 DATA = Path(os.environ.get("TRAINER_DATA", "/data"))
 JOBS = DATA / "jobs"
 WEB_DIR = Path(os.environ.get("TRAINER_WEB", "/app/web"))
-APP_URL = os.environ.get("APP_URL", "https://jshaa.github.io/Talk_AI/")
+# Empty: the QR opens the app served by this PC through the tunnel (works from any network, always matches
+# this server). Set e.g. https://jshaa.github.io/Talk_AI/ to use the GitHub Pages build instead.
+APP_URL = os.environ.get("APP_URL", "")
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "").rstrip("/")
 TUNNEL_METRICS = os.environ.get("TUNNEL_METRICS", "http://tunnel:20241")
 MAX_UPLOAD = int(os.environ.get("MAX_UPLOAD_MB", "64")) * 1024 * 1024
 TRAIN_SCRIPT = Path(os.environ.get("TRAIN_SCRIPT") or Path(__file__).with_name("persona_train.py"))
 ORIGINS = [o for o in os.environ.get("ALLOW_ORIGINS", "https://jshaa.github.io,https://localhost,http://localhost:5173,http://localhost:4173").split(",") if o]
-BASES = {"qwen2.5-0.5b", "qwen2.5-1.5b", "qwen2.5-3b", "qwen3-4b"}
+BASES = {"qwen2.5-0.5b", "qwen2.5-1.5b", "qwen2.5-3b", "qwen3-4b", "qwen3-4b-pc"}
+CHAT_WORKER = Path(os.environ.get("CHAT_WORKER") or Path(__file__).with_name("chat_worker.py"))
 ID_CHARS = set("0123456789abcdef")
 
 
@@ -97,15 +101,93 @@ def busy() -> str | None:
     return None
 
 
+class ChatWorker:
+    """One chat_worker.py process holding the PC-only model on the GPU; stopped while a job trains."""
+
+    def __init__(self) -> None:
+        self.proc: subprocess.Popen | None = None
+        self.adapter: Path | None = None
+        self.ready = threading.Event()
+        self.failed = ""
+        self.lock = threading.Lock()
+        self.log = None
+
+    def stop(self) -> None:
+        if self.proc and self.proc.poll() is None:
+            self.proc.kill()
+            self.proc.wait(timeout=30)
+        if self.log:
+            self.log.close()
+        self.proc, self.adapter, self.failed, self.log = None, None, "", None
+        self.ready.clear()
+
+    def warm(self, adapter: Path) -> None:
+        """Starts loading the model in the background (takes a minute) unless it is already loaded."""
+        if self.adapter == adapter and self.proc and self.proc.poll() is None:
+            return
+        self.stop()
+        self.log = open(adapter.parent.parent / "chat.log", "a")
+        self.proc = subprocess.Popen([sys.executable, str(CHAT_WORKER), "--adapter", str(adapter)], stdin=subprocess.PIPE,
+                                     stdout=subprocess.PIPE, stderr=self.log, text=True, encoding="utf-8", bufsize=1)
+        self.adapter = adapter
+        proc = self.proc
+
+        def wait_ready() -> None:
+            line = proc.stdout.readline()
+            if proc is self.proc:
+                if '"ready"' in line:
+                    self.ready.set()
+                else:
+                    self.failed = "PC 답장 모델을 불러오지 못했습니다(GPU 메모리 부족일 수 있음). PC의 chat.log를 확인하세요."
+
+        threading.Thread(target=wait_ready, daemon=True).start()
+
+    def ask(self, payload: dict, wait: float) -> dict:
+        if not self.ready.wait(wait):
+            raise HTTPException(500 if self.failed else 503, self.failed or "PC에서 모델을 불러오는 중입니다. 1분 뒤 다시 보내 주세요.")
+        with self.lock:
+            proc = self.proc
+            if proc is None or proc.poll() is not None:
+                self.stop()
+                raise HTTPException(503, "PC 답장 프로그램이 멈췄습니다. 다시 보내 주세요.")
+            proc.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
+            proc.stdin.flush()
+            line = proc.stdout.readline()
+        if not line:
+            self.stop()
+            raise HTTPException(503, "PC 답장 프로그램이 멈췄습니다. 다시 보내 주세요.")
+        return json.loads(line)
+
+
+CHAT = ChatWorker()
+
+
+def chat_adapter(d: Path, status: dict) -> Path | None:
+    adapter = d / "out" / str(status.get("adapter", ""))
+    return adapter if status.get("stage") == "done" and status.get("adapter") and adapter.is_dir() else None
+
+
+def newest_job() -> Path | None:
+    jobs = [d for d in JOBS.iterdir() if (d / "job.json").exists()] if JOBS.exists() else []
+    return max(jobs, key=lambda d: (d / "job.json").stat().st_mtime) if jobs else None
+
+
+def read_status(d: Path) -> dict:
+    f = d / "status.json"
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {"stage": "queued"}
+
+
 def job_view(d: Path) -> dict:
     job = json.loads((d / "job.json").read_text(encoding="utf-8"))
-    status_file = d / "status.json"
-    status = json.loads(status_file.read_text(encoding="utf-8")) if status_file.exists() else {"stage": "queued"}
+    status = read_status(d)
     proc = PROCS.get(d.name)
     if status.get("stage") not in ("done", "error", "cancelled") and (proc is None or proc.poll() is not None):
         status.update(stage="error", message=status.get("message") or "학습 프로세스가 중단되었습니다.")
     files = [{"name": n, "size": (d / "out" / n).stat().st_size} for n in status.get("files", []) if (d / "out" / n).exists()]
-    return {**job, **status, "files": files}
+    adapter = chat_adapter(d, status)
+    if adapter and not busy():
+        CHAT.warm(adapter)  # load it before the phone's first message
+    return {**job, **status, "files": files, "chat": adapter is not None}
 
 
 def validate_jsonl(text: str) -> tuple[int, int]:
@@ -143,6 +225,10 @@ api.add_middleware(
 async def isolation_headers(request: Request, call_next):
     # The app needs CORS for cross-origin use and CORP so a cross-origin-isolated page may load files.
     response = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        # The app served from this PC (tunnel/LAN) is cross-origin isolated without the service-worker reload.
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
     response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -175,6 +261,7 @@ async def create_job(request: Request) -> dict:
         raise HTTPException(400, "모델 또는 에폭 값이 잘못되었습니다.")
     samples, replies = validate_jsonl(jsonl)
 
+    CHAT.stop()  # frees the GPU for training (and the old job's adapter is deleted next)
     # Keep only the newest job on disk.
     if JOBS.exists():
         for old in JOBS.iterdir():
@@ -191,6 +278,41 @@ async def create_job(request: Request) -> dict:
     log = open(d / "train.log", "w")
     PROCS[job_id] = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     return job
+
+
+@api.post("/api/chat")
+async def chat(request: Request) -> dict:
+    """Reply generated on this PC by the newest PC-only model (the phone only sends the recent conversation)."""
+    authorize(request)
+    try:
+        req = json.loads(await request.body())
+        messages = [{"role": str(m["role"]), "content": str(m["content"])} for m in req["messages"]][-60:]
+        temperature = min(max(float(req.get("temperature", 0.8)), 0.1), 1.5)
+    except Exception:
+        raise HTTPException(400, "요청 형식이 잘못되었습니다.")
+    if not messages or any(m["role"] not in ("system", "user", "assistant") for m in messages) or sum(len(m["content"]) for m in messages) > 12000:
+        raise HTTPException(400, "대화 형식이 잘못되었습니다.")
+    if busy():
+        raise HTTPException(409, "PC가 학습 중이라 지금은 PC 답장을 쓸 수 없습니다.")
+    d = newest_job()
+    adapter = chat_adapter(d, read_status(d)) if d else None
+    if adapter is None:
+        raise HTTPException(404, "PC에 PC 답장용 모델이 없습니다. 'Qwen3-4B · PC에서 답장'으로 먼저 학습하세요.")
+    CHAT.warm(adapter)
+    out = await asyncio.to_thread(CHAT.ask, {"messages": messages, "temperature": temperature, "max_tokens": 160}, 75)
+    if "error" in out:
+        raise HTTPException(500, f"답장을 만들지 못했습니다: {out['error']}")
+    return {"reply": out["reply"]}
+
+
+@api.get("/api/jobs/latest")
+def latest_job(request: Request) -> dict:
+    """The job on disk (only the newest is kept), so a phone can load a model trained from the PC itself."""
+    authorize(request)
+    d = newest_job()
+    if d is None:
+        raise HTTPException(404, "작업이 없습니다.")
+    return job_view(d)
 
 
 @api.get("/api/jobs/{job_id}")
@@ -219,6 +341,7 @@ def cancel_job(job_id: str, request: Request) -> dict:
 @api.delete("/api/jobs/{job_id}")
 def delete_job(job_id: str, request: Request) -> dict:
     cancel_job(job_id, request)
+    CHAT.stop()
     shutil.rmtree(job_dir(job_id), ignore_errors=True)
     return {"deleted": job_id}
 
@@ -267,23 +390,44 @@ def qr_svg(text: str) -> str:
     return buf.getvalue().decode()
 
 
+def pairing_link(url: str) -> str:
+    """App address that connects to this PC when opened (server URL + token in the #fragment, never sent)."""
+    app = APP_URL or (f"{url}/" if WEB_DIR.is_dir() else "https://jshaa.github.io/Talk_AI/")
+    return f"{app}#trainer={quote(url, safe='')}&token={quote(TOKEN, safe='')}" if url else ""
+
+
+@pair.get("/link", response_class=PlainTextResponse)
+def share_link() -> str:
+    """Plain link for sharing without a QR scan, e.g. (iwr http://localhost:8001/link).Content | Set-Clipboard"""
+    link = pairing_link(public_url())
+    if not link:
+        raise HTTPException(503, "외부 주소(터널)를 아직 받지 못했습니다.")
+    return link
+
+
 @pair.get("/", response_class=HTMLResponse)
 def pairing_page() -> str:
     url = public_url()
-    link = f"{APP_URL}#trainer={quote(url, safe='')}&token={quote(TOKEN, safe='')}" if url else ""
+    link = pairing_link(url)
     qr = qr_svg(link) if link else ""
     body = (
-        f"<p>휴대폰 카메라로 QR을 찍으면 말투 AI가 이 PC에 연결됩니다.</p><div class=qr>{qr}</div>"
-        f"<p class=small>주소: <code>{escape(url)}</code> · <a href=\"{escape(link)}\">이 PC에서 앱 열기</a></p>"
+        "<p>휴대폰에서 아래 <b>연결 주소</b>를 열면(카카오톡 나에게 보내기·메일 등으로 전달) 말투 AI가 이 PC에 연결됩니다. "
+        "Wi-Fi·LTE 등 어느 네트워크에서나 됩니다.</p>"
+        f"<p><input id=link readonly value=\"{escape(link)}\" onclick=\"this.select()\"> <button id=copy>주소 복사</button> <span id=copied class=small></span></p>"
+        f"<p class=small>또는 휴대폰 카메라로 QR 찍기:</p><div class=qr>{qr}</div>"
+        f"<p class=small>서버: <code>{escape(url)}</code> · <a href=\"{escape(link)}\">이 PC에서 앱 열기</a></p>"
+        "<script>document.getElementById('copy').onclick=async()=>{const i=document.getElementById('link');"
+        "try{await navigator.clipboard.writeText(i.value)}catch{i.select();document.execCommand('copy')}"
+        "document.getElementById('copied').textContent='복사됨'}</script>"
         if link
         else "<p>외부 주소(터널)를 아직 받지 못했습니다. 10초 뒤 새로고침하거나, 같은 Wi-Fi라면 아래 LAN 방식을 쓰세요.</p>"
     )
     return f"""<!doctype html><html lang=ko><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
 <title>말투 AI 학습 서버</title><style>body{{font:16px/1.6 system-ui,'Malgun Gothic',sans-serif;max-width:640px;margin:32px auto;padding:0 16px}}
-.qr svg{{width:280px;height:280px;background:#fff}}code{{background:#eee;padding:2px 6px;border-radius:4px;word-break:break-all}}.small{{font-size:13px;color:#555}}</style>
+#link{{width:100%;box-sizing:border-box;font:13px monospace;padding:8px}}.qr svg{{width:220px;height:220px;background:#fff}}code{{background:#eee;padding:2px 6px;border-radius:4px;word-break:break-all}}.small{{font-size:13px;color:#555}}</style>
 <h1>말투 AI 학습 서버</h1><p>장치: <b>{escape(DEVICE)}</b></p>{body}
 <h2>같은 Wi-Fi(LAN)에서 쓰기</h2><p>휴대폰 브라우저로 <code>http://(이 PC의 IP):8000</code>을 열고, 앱 ② 탭 "내 PC로 학습"에 토큰을 입력하세요.<br>토큰: <code>{escape(TOKEN)}</code></p>
-<p class=small>이 페이지는 이 PC에서만 열립니다. 토큰은 학습 서버를 쓸 수 있는 비밀번호이니 다른 사람에게 보여 주지 마세요.</p></html>"""
+<p class=small>이 페이지는 이 PC에서만 열립니다. 연결 주소와 토큰은 학습 서버를 쓸 수 있는 비밀번호와 같으니 믿을 수 있는 사람에게만 보내세요. 터널을 다시 켜면 주소가 바뀝니다.</p></html>"""
 
 
 async def serve() -> None:
