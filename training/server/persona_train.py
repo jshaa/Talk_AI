@@ -51,10 +51,12 @@ MODELS = {
     # Same model, but replies are generated on this PC (chat_worker.py) from the 4-bit base + the LoRA
     # adapter: no merge/GGUF export, and a longer context than a phone browser can hold.
     "qwen3-4b-pc": ("unsloth/Qwen3-4B-Instruct-2507", "Qwen/Qwen3-4B-Instruct-2507"),
+    # Trained on a 16 GB GPU (train_pc_8b_colab.ipynb); the PC imports the adapter and replies with llama.cpp.
+    "qwen3-8b-pc": ("unsloth/Qwen3-8B", "Qwen/Qwen3-8B"),
 }
-PC_ONLY = {"qwen3-4b-pc"}
+PC_ONLY = {"qwen3-4b-pc", "qwen3-8b-pc"}
 # (batch, gradient accumulation, max tokens) on the GPU: longer windows fit as two samples per step in 8 GB.
-GPU_BATCH = {"qwen3-4b-pc": (2, 8, 2560)}
+GPU_BATCH = {"qwen3-4b-pc": (2, 8, 2560), "qwen3-8b-pc": (2, 8, 2560)}
 # Replies that are only an interjection ("어어엉", "ㅋㅋㅋ", "웅") dominate chat logs; training on all of them
 # teaches the model to answer everything that way. Most stay as context only; this share is still trained.
 BACKCHANNEL_KEEP = 3  # of every 10 occurrences of the same interjection

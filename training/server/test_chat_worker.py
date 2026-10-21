@@ -36,6 +36,28 @@ def test_tags_steer_length_and_questions():
     assert cw.pick(["ㅋㅋㅋ\n캬캬캬컄", "ㅋㅋㅋ\n개웃기넼"], [S, {"role": "user", "content": "ㅎㅎ"}], "[2줄]") == "ㅋㅋㅋ\n개웃기넼"
 
 
+def test_respond_builds_the_tagged_prompt_and_picks_a_candidate():
+    seen = {}
+
+    def generate(prompt, n, temperature, max_new):
+        seen.update(prompt=prompt, n=n, temperature=temperature)
+        return ["<think></think>ㅋㅋㅋ\n캬캬캬", "응 집이야<|im_end|>", "응 집이야\n너는?"]
+
+    msgs = [S, {"role": "user", "content": "ㅎㅎ"}]
+    reply = cw.respond(msgs, 0.7, generate, len)
+    assert seen["n"] == cw.CANDIDATES and seen["temperature"] == 0.7
+    assert seen["prompt"].startswith("<|im_start|>system\ns<|im_end|>") and "<|im_start|>assistant\n[" in seen["prompt"]
+    assert reply in ("응 집이야", "응 집이야\n너는?")
+
+
+def test_clean_keeps_only_the_reply():
+    assert cw.clean("안녕~\n</think>\n[1줄]\n오늘은 좀") == "안녕~"
+    assert cw.clean("<think>음</think>집이야\n[2줄 질문]\n뭐해") == "집이야"
+    assert cw.clean("<think>생각만 하다 끝남") == ""
+    assert cw.clean("응응\n밥 먹었어?<|im_end|>") == "응응\n밥 먹었어?"
+    assert cw.clean("[1] 이건 그대로") == "[1] 이건 그대로"
+
+
 def test_empty_candidates_lose_and_fit_drops_oldest_turns():
     assert cw.pick(["", "웅"], [S, {"role": "user", "content": "ㅎㅎ"}]) == "웅"
     msgs = [S] + [{"role": r, "content": "x" * 10} for r in ("user", "assistant") * 5]

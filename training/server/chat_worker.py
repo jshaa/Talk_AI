@@ -6,6 +6,7 @@ Loads the 4-bit base model + the LoRA adapter saved by persona_train.py and answ
     stdout: {"ready": true} once loaded, then {"reply": "..."} or {"error": "..."} per request.
 The prompt is ChatML exactly as in training. Several candidates are sampled and the one that does not repeat
 the conversation (or answer a question with a bare "어어엉") is returned. Nothing is logged or stored.
+server.py also uses respond() with the llama.cpp `llm` service for imported qwen3-8b-pc adapters.
 """
 from __future__ import annotations
 
@@ -79,6 +80,21 @@ def pick(candidates: list[str], messages: list[dict], tag: str = "") -> str:
     return min(candidates, key=problems)
 
 
+def clean(text: str) -> str:
+    """The reply only: drops a <think> block and cuts at anything that starts a new turn or reply hint."""
+    text = re.sub(r"<think>.*?(</think>|$)", "", text, flags=re.S)
+    return re.split(r"</think>|<\|im_(?:start|end)\|>|^\[\d줄[^\]\n]*\]", text, maxsplit=1, flags=re.M)[0].strip()
+
+
+def respond(messages: list[dict], temperature: float, generate, count, context: int = 3072, max_new: int = 160) -> str:
+    """One reply: fit the conversation, choose a tag, sample CANDIDATES continuations, pick the best.
+    `generate(prompt, n, temperature, max_new)` returns n texts; `count(text)` returns its token count."""
+    messages = fit(messages, count, context - max_new)
+    tag = choose_tag(messages)
+    texts = generate(chatml(messages, tag), CANDIDATES, temperature, max_new)
+    return pick([clean(t) for t in texts], messages, tag)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--adapter", required=True, help="LoRA adapter folder from persona_train.py")
@@ -99,22 +115,21 @@ def main() -> int:
     count = lambda s: len(tokenizer(s, add_special_tokens=False).input_ids)  # noqa: E731
     proto.write(json.dumps({"ready": True}) + "\n")
 
+    def generate(prompt: str, n: int, temperature: float, max_new: int) -> list[str]:
+        ids = tokenizer(prompt, add_special_tokens=False, return_tensors="pt").input_ids.to(model.device)
+        with torch.inference_mode():
+            out = model.generate(
+                input_ids=ids, attention_mask=torch.ones_like(ids), max_new_tokens=max_new, do_sample=True,
+                temperature=temperature, top_p=0.92, top_k=50, min_p=0.05,
+                repetition_penalty=1.12, num_return_sequences=n, eos_token_id=end, pad_token_id=end,
+            )
+        return [tokenizer.decode(o[ids.shape[1]:], skip_special_tokens=True) for o in out]
+
     for line in sys.stdin:
         try:
             req = json.loads(line)
-            max_new = int(req.get("max_tokens", 160))
-            messages = fit(req["messages"], count, args.context - max_new)
-            tag = choose_tag(messages)
-            ids = tokenizer(chatml(messages, tag), add_special_tokens=False, return_tensors="pt").input_ids.to(model.device)
-            with torch.inference_mode():
-                out = model.generate(
-                    input_ids=ids, attention_mask=torch.ones_like(ids), max_new_tokens=max_new, do_sample=True,
-                    temperature=float(req.get("temperature", 0.8)), top_p=0.92, top_k=50, min_p=0.05,
-                    repetition_penalty=1.12, num_return_sequences=CANDIDATES, eos_token_id=end, pad_token_id=end,
-                )
-            texts = [tokenizer.decode(o[ids.shape[1]:], skip_special_tokens=True) for o in out]
-            replies = [re.sub(r"<think>.*?</think>", "", t, flags=re.S).strip() for t in texts]
-            proto.write(json.dumps({"reply": pick(replies, messages, tag)}, ensure_ascii=False) + "\n")
+            reply = respond(req["messages"], float(req.get("temperature", 0.8)), generate, count, args.context, int(req.get("max_tokens", 160)))
+            proto.write(json.dumps({"reply": reply}, ensure_ascii=False) + "\n")
         except Exception as e:  # one bad request must not stop the worker
             proto.write(json.dumps({"error": str(e)[:300]}, ensure_ascii=False) + "\n")
     return 0

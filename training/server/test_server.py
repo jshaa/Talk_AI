@@ -3,7 +3,10 @@ import json
 import os
 import sys
 import tempfile
+import threading
 import time
+import zipfile
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 HERE = Path(__file__).parent
@@ -38,7 +41,48 @@ for line in sys.stdin:
 """,
     encoding="utf-8",
 )
-os.environ.update(CHAT_WORKER=str(FAKE_CHAT))
+FAKE_IMPORT = TMP / "fake_import.py"
+FAKE_IMPORT.write_text(
+    """
+import argparse, json, pathlib
+ap = argparse.ArgumentParser(); [ap.add_argument(a) for a in ("--zip","--out","--status","--llm-dir")]
+a = ap.parse_known_args()[0]
+pathlib.Path(a.zip).unlink()
+llm = pathlib.Path(a.llm_dir); llm.mkdir(parents=True, exist_ok=True); (llm / "lora.gguf").write_bytes(b"GGUF")
+pathlib.Path(a.status).write_text(json.dumps({"stage": "done", "files": [], "llm": True}))
+""",
+    encoding="utf-8",
+)
+
+
+class FakeLlama(BaseHTTPRequestHandler):
+    """llama.cpp server API used by server.llm_reply: one token per character, a fixed two-line reply."""
+
+    def do_GET(self):
+        self.reply({"status": "ok"})
+
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if self.path == "/tokenize":
+            self.reply({"tokens": list(range(len(body["content"])))})
+        else:
+            assert body["prompt"].startswith("<|im_start|>system") and body["stop"][0] == "<|im_end|>"
+            self.reply({"content": "집이야\n너는 뭐해?"})
+
+    def reply(self, obj):
+        data = json.dumps(obj, ensure_ascii=False).encode()
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def log_message(self, *a):
+        pass
+
+
+LLAMA = ThreadingHTTPServer(("127.0.0.1", 0), FakeLlama)
+threading.Thread(target=LLAMA.serve_forever, daemon=True).start()
+os.environ.update(CHAT_WORKER=str(FAKE_CHAT), IMPORT_SCRIPT=str(FAKE_IMPORT), LLM_URL=f"http://127.0.0.1:{LLAMA.server_port}")
 os.environ.update(TRAINER_DATA=str(TMP / "data"), TRAINER_TOKEN="secret", TRAIN_SCRIPT=str(FAKE), TRAINER_WEB=str(TMP / "noweb"), PUBLIC_URL="https://abc.trycloudflare.com")
 sys.path.insert(0, str(HERE))
 
@@ -118,6 +162,36 @@ def test_pc_chat_with_a_pc_adapter():
     r = client.post("/api/chat", json=msgs, headers=AUTH)
     assert r.status_code == 200 and r.json() == {"reply": "응 뭐해"}
     server.CHAT.stop()
+
+
+def adapter_zip(meta: dict, extra: str = "") -> bytes:
+    path = TMP / "adapter.zip"
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("persona-8b/meta.json", json.dumps(meta, ensure_ascii=False))
+        z.writestr("persona-8b/adapter_config.json", json.dumps({"peft_type": "LORA", "r": 16, "target_modules": ["q_proj", "v_proj"]}))
+        z.writestr("persona-8b/adapter_model.safetensors", b"\0" * 16)
+        if extra:
+            z.writestr(extra, b"x")
+    return path.read_bytes()
+
+
+def test_import_colab_adapter_and_reply_through_llama_cpp():
+    pair = TestClient(server.pair)
+    good = {"base": "qwen3-8b-pc", "persona": "장선호", "replies": 19330}
+    assert pair.post("/import", content=b"not a zip").status_code == 400
+    assert pair.post("/import", content=adapter_zip({**good, "base": "llama-70b"})).status_code == 400
+    assert pair.post("/import", content=adapter_zip(good, extra="evil.py")).status_code == 400
+    r = pair.post("/import", content=adapter_zip(good))
+    assert r.status_code == 200 and r.json()["persona"] == "장선호" and r.json()["imported"]
+    done = wait_done(r.json()["id"])
+    assert done["chat"] is True and done["llm"] is True and not (server.DATA / "import.zip.part").exists()
+    assert pair.get("/import/status").json()["final"] is True
+    msgs = {"messages": [{"role": "system", "content": "s"}, {"role": "user", "content": "뭐해?"}]}
+    assert client.post("/api/chat", json=msgs, headers=AUTH).json() == {"reply": "집이야\n너는 뭐해?"}
+    # a new training job frees the GPU: the llm service loses its adapter
+    job = client.post("/api/jobs", json={"jsonl": SAMPLE}, headers=AUTH).json()
+    assert not (server.LLM_DIR / "lora.gguf").exists()
+    wait_done(job["id"])
 
 
 def test_one_job_at_a_time_and_cancel():

@@ -19,7 +19,7 @@ RUN git clone --depth 1 --branch ${LLAMA_CPP_REF} https://github.com/ggml-org/ll
  && cmake -S /opt/llama.cpp -B /opt/llama.cpp/build -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DLLAMA_CURL=OFF \
       -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_SERVER=OFF \
  && cmake --build /opt/llama.cpp/build -j"$(nproc)" --target llama-quantize llama-gguf-split \
- && mkdir /opt/out && cp -r /opt/llama.cpp/convert_hf_to_gguf.py /opt/llama.cpp/conversion /opt/llama.cpp/gguf-py /opt/llama.cpp/LICENSE /opt/out/ \
+ && mkdir /opt/out && cp -r /opt/llama.cpp/convert_hf_to_gguf.py /opt/llama.cpp/convert_lora_to_gguf.py /opt/llama.cpp/conversion /opt/llama.cpp/gguf-py /opt/llama.cpp/LICENSE /opt/out/ \
  && mkdir /opt/out/build && cp -r /opt/llama.cpp/build/bin /opt/out/build/
 
 # ---- 3. runtime
@@ -33,7 +33,7 @@ COPY training/server/requirements.txt /app/requirements.txt
 RUN pip install -r /app/requirements.txt
 COPY --from=llama /opt/out /opt/llama.cpp
 COPY --from=web /src/apps/mimic/dist /app/web
-COPY training/server/server.py training/server/persona_train.py training/server/chat_worker.py /app/
+COPY training/server/server.py training/server/persona_train.py training/server/chat_worker.py training/server/import_adapter.py /app/
 ENV LLAMA_CPP_DIR=/opt/llama.cpp TRAINER_DATA=/data TRAINER_WEB=/app/web HF_HOME=/data/hf \
     HF_HUB_DISABLE_TELEMETRY=1 TRANSFORMERS_NO_ADVISORY_WARNINGS=1 UNSLOTH_DISABLE_STATISTICS=1
 VOLUME /data

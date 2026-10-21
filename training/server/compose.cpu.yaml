@@ -2,3 +2,5 @@
 services:
   trainer:
     deploy: !reset {}
+  llm:
+    profiles: ["gpu"]   # 8B replies need an NVIDIA GPU; not started without one
