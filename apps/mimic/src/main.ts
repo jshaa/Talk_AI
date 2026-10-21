@@ -6,6 +6,7 @@ import { selectExamples, examplesBlock } from './persona/fewshot';
 import { systemPrompt } from './persona/systemPrompt';
 import { checkReply, BLOCKED_NOTICE } from './persona/safety';
 import { buildHistory, type Turn } from './persona/history';
+import { splitReply, typingDelay, TYPING } from './persona/pace';
 import { Engine } from './llm/engine';
 import { SAMPLE_EXPORT } from './sample';
 import * as trainer from './trainer/client';
@@ -19,6 +20,8 @@ const state = {
   displayName: '',
   turns: [] as Turn[],
   busy: null as AbortController | null,
+  /** Shows the rest of a reply that is still being revealed line by line. */
+  flushReply: null as (() => void) | null,
 };
 const engine = new Engine();
 
@@ -160,7 +163,7 @@ $('export').addEventListener('click', () => {
 
 // ---------- ② model ----------
 const personaName = () => ($('persona-name') as HTMLInputElement).value.trim();
-const mode = () => (document.querySelector<HTMLInputElement>('input[name=mode]:checked')?.value ?? 'finetuned') as 'finetuned' | 'fewshot';
+const mode = () => (document.querySelector<HTMLInputElement>('input[name=mode]:checked')?.value ?? 'finetuned') as 'finetuned' | 'fewshot' | 'pc';
 
 ($('persona-name') as HTMLInputElement).value = prefs.get('name');
 $('persona-name').addEventListener('change', () => prefs.set('name', personaName()));
@@ -255,7 +258,7 @@ function showJob(job: trainer.TrainerJob): void {
   bar.value = trainer.progressOf(job);
   $('trainer-cancel').hidden = !running;
   ($('trainer-start') as HTMLButtonElement).disabled = running;
-  $('trainer-load').hidden = job.stage !== 'done';
+  $('trainer-load').hidden = job.stage !== 'done' || !!job.chat;
   trainerSay(`${trainer.describeJob(job)}${job.stage === 'training' ? ` · 답장 ${job.replies.toLocaleString()}개` : ''}`);
 }
 
@@ -281,7 +284,18 @@ async function pollJob(id: string): Promise<void> {
   }
 }
 
+/** A PC-only model (qwen3-4b-pc): nothing to download, replies come from the PC. */
+function usePcModel(job: trainer.TrainerJob): void {
+  document.querySelector<HTMLInputElement>('input[name=mode][value=pc]')?.click();
+  if (job.persona) {
+    ($('persona-name') as HTMLInputElement).value = job.persona;
+    prefs.set('name', job.persona);
+  }
+  trainerSay(`PC 답장 모델이 준비됐습니다${job.persona ? ` ('${job.persona}' 말투)` : ''}. ③ 대화하기에서 쓰세요. 답장은 PC가 만들어 보냅니다.`);
+}
+
 async function loadTrained(job: trainer.TrainerJob): Promise<void> {
+  if (job.chat) return usePcModel(job);
   const cfg = trainerCfg();
   const url = trainer.modelUrl(cfg, job);
   if (!url) return void trainerSay('학습은 끝났지만 모델 파일이 없습니다. PC의 학습 로그를 확인하세요.');
@@ -391,15 +405,18 @@ async function initTrainer(): Promise<void> {
       /* not served by the trainer */
     }
   }
-  const id = prefs.get('trainer.job');
-  if (id && trainerUrl.value && trainerToken.value) {
-    try {
-      const job = await trainer.getJob(trainerCfg(), id);
-      showJob(job);
-      if (!trainer.finished(job.stage)) void pollJob(id);
-    } catch {
-      /* server off: keep the settings, the user can start again */
-    }
+  if (!trainerUrl.value || !trainerToken.value) return;
+  // The PC keeps one job: the one this phone started, or one started on the PC itself.
+  try {
+    const job = await trainer.latestJob(trainerCfg());
+    prefs.set('trainer.job', job.id);
+    showJob(job);
+    if (!trainer.finished(job.stage)) void pollJob(job.id);
+    else if (job.stage === 'done' && job.chat) usePcModel(job);
+    else if (job.stage === 'done' && !engine.loaded)
+      trainerSay(`PC에 학습된 모델이 있습니다${job.persona ? ` ('${job.persona}' 말투)` : ''}. "학습된 모델 불러오기"를 누르세요.`);
+  } catch {
+    /* server off or no job yet: keep the settings, the user can start again */
   }
 }
 void initTrainer();
@@ -428,6 +445,31 @@ function bubble(role: 'user' | 'assistant', text: string, extra = ''): HTMLLIEle
   return li;
 }
 
+/** Reveals reply lines one at a time with a typing indicator between them. */
+function revealReply(lines: string[]): void {
+  const rest = [...lines];
+  let typing: HTMLLIElement | null = null;
+  let timer = 0;
+  const done = () => {
+    typing?.remove();
+    typing = null;
+    state.flushReply = null;
+  };
+  const next = () => {
+    typing?.remove();
+    bubble('assistant', rest.shift()!);
+    if (!rest.length) return done();
+    typing = bubble('assistant', TYPING, 'pending');
+    timer = window.setTimeout(next, typingDelay(rest[0]));
+  };
+  state.flushReply = () => {
+    clearTimeout(timer);
+    done();
+    rest.splice(0).forEach((l) => bubble('assistant', l));
+  };
+  next();
+}
+
 function setBusy(controller: AbortController | null): void {
   state.busy = controller;
   $('send').hidden = controller !== null;
@@ -442,14 +484,17 @@ $('composer').addEventListener('submit', async (e) => {
   if (!text) return;
   const name = personaName();
   if (!name) return void bubble('assistant', '② 모델 탭에서 따라할 이름을 입력하세요.', 'system');
-  if (!engine.loaded) return void bubble('assistant', '② 모델 탭에서 모델을 먼저 불러오세요.', 'system');
+  const pc = mode() === 'pc';
+  if (pc && (!trainerUrl.value || !trainerToken.value)) return void bubble('assistant', 'PC 답장은 PC 연결 주소로 열어야 합니다(PC의 http://localhost:8001 에서 주소 복사).', 'system');
+  if (!pc && !engine.loaded) return void bubble('assistant', '② 모델 탭에서 모델을 먼저 불러오세요.', 'system');
   if (mode() === 'fewshot' && !state.dataset) return void bubble('assistant', '"기본 모델 + 예시" 방식은 ① 대화 탭에서 말투 분석을 먼저 해야 합니다.', 'system');
 
+  state.flushReply?.(); // a new message while the last reply is still "typing": show the rest now
   input.value = '';
   bubble('user', text);
   state.turns.push({ role: 'user', content: text });
 
-  const live = bubble('assistant', '…', 'pending');
+  const live = bubble('assistant', TYPING, 'pending');
   const controller = new AbortController();
   setBusy(controller);
   // Fit a 2048-token phone context: a smaller prompt is retried once if the model reports an overflow.
@@ -459,12 +504,15 @@ $('composer').addEventListener('submit', async (e) => {
       const style = styleRules(summarizeStyle(state.dataset));
       system += `\n\n말투 특징:\n${style}\n\n${examplesBlock(name, selectExamples(state.dataset.pairs, text, 600 * scale))}`;
     }
+    if (pc) {
+      // The PC model has a 3k-token context: send more of the conversation so replies follow it.
+      const request = trainer.chatReply(trainerCfg(), [{ role: 'system', content: system }, ...buildHistory(state.turns, 3000 * scale)]);
+      const aborted = new Promise<never>((_, reject) => controller.signal.addEventListener('abort', () => reject(new Error('aborted'))));
+      return Promise.race([request.then((r) => r.reply), aborted]);
+    }
     const history = buildHistory(state.turns, (mode() === 'fewshot' ? 700 : 1200) * scale);
     return engine.chat([{ role: 'system', content: system }, ...history], {
       signal: controller.signal,
-      onToken: (t) => {
-        live.querySelector('.body')!.textContent = checkReply(t).blocked ? '…' : t;
-      },
     });
   };
   try {
@@ -476,12 +524,12 @@ $('composer').addEventListener('submit', async (e) => {
       reply = await attempt(0.3);
     }
     live.remove();
-    const clean = reply.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/ \/ /g, '\n').trim();
-    if (!clean) bubble('assistant', '(빈 답장)', 'system');
-    else if (checkReply(clean).blocked) bubble('assistant', BLOCKED_NOTICE, 'system');
+    const lines = splitReply(reply.replace(/<think>[\s\S]*?<\/think>/g, ''));
+    if (!lines.length) bubble('assistant', '(빈 답장)', 'system');
+    else if (checkReply(lines.join('\n')).blocked) bubble('assistant', BLOCKED_NOTICE, 'system');
     else {
-      clean.split('\n').filter((l) => l.trim()).forEach((l) => bubble('assistant', l.trim()));
-      state.turns.push({ role: 'assistant', content: clean });
+      state.turns.push({ role: 'assistant', content: lines.join('\n') });
+      revealReply(lines);
     }
   } catch (err) {
     live.remove();
@@ -501,6 +549,7 @@ $('input').addEventListener('keydown', (e) => {
 });
 $('stop').addEventListener('click', () => state.busy?.abort());
 $('clear').addEventListener('click', () => {
+  state.flushReply?.();
   state.turns = [];
   $('messages').replaceChildren();
 });

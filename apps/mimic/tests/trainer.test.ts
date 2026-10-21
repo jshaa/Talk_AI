@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { describeJob, getJob, health, modelUrl, normalizeUrl, parsePairing, progressOf, startJob, TrainerError, type TrainerJob } from '../src/trainer/client';
+import { chatReply, describeJob, getJob, health, modelUrl, normalizeUrl, parsePairing, progressOf, startJob, TrainerError, type TrainerJob } from '../src/trainer/client';
 
 const cfg = { url: 'https://abc-def.trycloudflare.com/', token: 't0k' };
 const job: TrainerJob = { id: 'a'.repeat(32), base: 'qwen2.5-1.5b', persona: 'x', samples: 3, replies: 5, stage: 'training', step: 5, total: 10, loss: 1.2346, files: [] };
@@ -19,6 +19,16 @@ describe('trainer client', () => {
     expect(url).toBe('https://abc-def.trycloudflare.com/api/jobs');
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer t0k');
     expect(JSON.parse(init.body as string)).toEqual({ jsonl: '{"messages":[]}\n', base: 'qwen2.5-0.5b', persona: '친구' });
+  });
+
+  it('asks the PC for a reply with the conversation', async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ reply: '어어엉' }), { status: 200 }));
+    const messages = [{ role: 'system' as const, content: 's' }, { role: 'user' as const, content: '뭐해' }];
+    expect(await chatReply(cfg, messages, 0.8, f as unknown as typeof fetch)).toEqual({ reply: '어어엉' });
+    const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://abc-def.trycloudflare.com/api/chat');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ messages, temperature: 0.8 });
   });
 
   it('surfaces server error messages and network failures', async () => {

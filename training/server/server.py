@@ -7,6 +7,8 @@
 The phone uploads the chat JSONL, the PC fine-tunes (persona_train.py) and the phone downloads the
 GGUF. One job at a time; only the newest job's files are kept; uploaded text is deleted as soon as
 training has read it. Nothing is sent anywhere except the base-model download from Hugging Face.
+PC-only models reply through /api/chat: qwen3-4b-pc via chat_worker.py, and an adapter imported on the
+pairing page (Qwen3-8B trained on Colab, import_adapter.py) via the llama.cpp `llm` service.
 """
 from __future__ import annotations
 
@@ -20,7 +22,9 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
+import urllib.error
 import urllib.request
 import uuid
 from html import escape
@@ -29,19 +33,29 @@ from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
+
+import chat_worker
+import import_adapter
 
 DATA = Path(os.environ.get("TRAINER_DATA", "/data"))
 JOBS = DATA / "jobs"
 WEB_DIR = Path(os.environ.get("TRAINER_WEB", "/app/web"))
-APP_URL = os.environ.get("APP_URL", "https://jshaa.github.io/Talk_AI/")
+# Empty: the QR opens the app served by this PC through the tunnel (works from any network, always matches
+# this server). Set e.g. https://jshaa.github.io/Talk_AI/ to use the GitHub Pages build instead.
+APP_URL = os.environ.get("APP_URL", "")
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "").rstrip("/")
 TUNNEL_METRICS = os.environ.get("TUNNEL_METRICS", "http://tunnel:20241")
 MAX_UPLOAD = int(os.environ.get("MAX_UPLOAD_MB", "64")) * 1024 * 1024
 TRAIN_SCRIPT = Path(os.environ.get("TRAIN_SCRIPT") or Path(__file__).with_name("persona_train.py"))
 ORIGINS = [o for o in os.environ.get("ALLOW_ORIGINS", "https://jshaa.github.io,https://localhost,http://localhost:5173,http://localhost:4173").split(",") if o]
-BASES = {"qwen2.5-0.5b", "qwen2.5-1.5b", "qwen2.5-3b", "qwen3-4b"}
+BASES = {"qwen2.5-0.5b", "qwen2.5-1.5b", "qwen2.5-3b", "qwen3-4b", "qwen3-4b-pc"}
+CHAT_WORKER = Path(os.environ.get("CHAT_WORKER") or Path(__file__).with_name("chat_worker.py"))
+IMPORT_SCRIPT = Path(os.environ.get("IMPORT_SCRIPT") or Path(__file__).with_name("import_adapter.py"))
+LLM_DIR = DATA / "llm"  # base.gguf + lora.gguf served by the `llm` service (llm.sh)
+LLM_URL = os.environ.get("LLM_URL", "http://llm:8080")
+MAX_IMPORT = 1024**3
 ID_CHARS = set("0123456789abcdef")
 
 
@@ -97,15 +111,131 @@ def busy() -> str | None:
     return None
 
 
+class ChatWorker:
+    """One chat_worker.py process holding the PC-only model on the GPU; stopped while a job trains."""
+
+    def __init__(self) -> None:
+        self.proc: subprocess.Popen | None = None
+        self.adapter: Path | None = None
+        self.ready = threading.Event()
+        self.failed = ""
+        self.lock = threading.Lock()
+        self.log = None
+
+    def stop(self) -> None:
+        if self.proc and self.proc.poll() is None:
+            self.proc.kill()
+            self.proc.wait(timeout=30)
+        if self.log:
+            self.log.close()
+        self.proc, self.adapter, self.failed, self.log = None, None, "", None
+        self.ready.clear()
+
+    def warm(self, adapter: Path) -> None:
+        """Starts loading the model in the background (takes a minute) unless it is already loaded."""
+        if self.adapter == adapter and self.proc and self.proc.poll() is None:
+            return
+        self.stop()
+        self.log = open(adapter.parent.parent / "chat.log", "a")
+        self.proc = subprocess.Popen([sys.executable, str(CHAT_WORKER), "--adapter", str(adapter)], stdin=subprocess.PIPE,
+                                     stdout=subprocess.PIPE, stderr=self.log, text=True, encoding="utf-8", bufsize=1)
+        self.adapter = adapter
+        proc = self.proc
+
+        def wait_ready() -> None:
+            line = proc.stdout.readline()
+            if proc is self.proc:
+                if '"ready"' in line:
+                    self.ready.set()
+                else:
+                    self.failed = "PC 답장 모델을 불러오지 못했습니다(GPU 메모리 부족일 수 있음). PC의 chat.log를 확인하세요."
+
+        threading.Thread(target=wait_ready, daemon=True).start()
+
+    def ask(self, payload: dict, wait: float) -> dict:
+        if not self.ready.wait(wait):
+            raise HTTPException(500 if self.failed else 503, self.failed or "PC에서 모델을 불러오는 중입니다. 1분 뒤 다시 보내 주세요.")
+        with self.lock:
+            proc = self.proc
+            if proc is None or proc.poll() is not None:
+                self.stop()
+                raise HTTPException(503, "PC 답장 프로그램이 멈췄습니다. 다시 보내 주세요.")
+            proc.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
+            proc.stdin.flush()
+            line = proc.stdout.readline()
+        if not line:
+            self.stop()
+            raise HTTPException(503, "PC 답장 프로그램이 멈췄습니다. 다시 보내 주세요.")
+        return json.loads(line)
+
+
+CHAT = ChatWorker()
+
+
+def chat_adapter(d: Path, status: dict) -> Path | None:
+    adapter = d / "out" / str(status.get("adapter", ""))
+    return adapter if status.get("stage") == "done" and status.get("adapter") and adapter.is_dir() else None
+
+
+def reset_jobs() -> None:
+    """Before a new job: free the GPU (stops both reply backends) and keep only the newest job on disk."""
+    CHAT.stop()
+    (LLM_DIR / "lora.gguf").unlink(missing_ok=True)  # llm.sh stops serving
+    if JOBS.exists():
+        for old in JOBS.iterdir():
+            shutil.rmtree(old, ignore_errors=True)
+
+
+def llm_call(path: str, body: dict | None = None, timeout: float = 120) -> dict:
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(f"{LLM_URL}{path}", data, {"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read())
+    except (urllib.error.URLError, OSError) as e:  # not started yet or still loading the model (503)
+        raise HTTPException(503, "PC가 8B 모델을 GPU에 올리는 중입니다. 30초쯤 뒤 다시 보내 주세요.") from e
+
+
+def llm_ready() -> bool:
+    try:
+        return llm_call("/health", timeout=3).get("status") == "ok"
+    except HTTPException:
+        return False
+
+
+def llm_reply(messages: list[dict], temperature: float) -> str:
+    """Reply from the imported adapter served by llama.cpp, with the same prompt and selection as chat_worker."""
+    def generate(prompt: str, n: int, temp: float, max_new: int) -> list[str]:
+        body = {"prompt": prompt, "n_predict": max_new, "temperature": temp, "top_p": 0.92, "top_k": 50, "min_p": 0.05,
+                "repeat_penalty": 1.12, "stop": [chat_worker.IM_END, chat_worker.IM_START, "</think>"], "cache_prompt": True}
+        return [llm_call("/completion", {**body, "seed": secrets.randbelow(2**31)})["content"] for _ in range(n)]
+
+    count = lambda s: len(llm_call("/tokenize", {"content": s}, 10)["tokens"])  # noqa: E731
+    return chat_worker.respond(messages, temperature, generate, count)
+
+
+def newest_job() -> Path | None:
+    jobs = [d for d in JOBS.iterdir() if (d / "job.json").exists()] if JOBS.exists() else []
+    return max(jobs, key=lambda d: (d / "job.json").stat().st_mtime) if jobs else None
+
+
+def read_status(d: Path) -> dict:
+    f = d / "status.json"
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {"stage": "queued"}
+
+
 def job_view(d: Path) -> dict:
     job = json.loads((d / "job.json").read_text(encoding="utf-8"))
-    status_file = d / "status.json"
-    status = json.loads(status_file.read_text(encoding="utf-8")) if status_file.exists() else {"stage": "queued"}
+    status = read_status(d)
     proc = PROCS.get(d.name)
     if status.get("stage") not in ("done", "error", "cancelled") and (proc is None or proc.poll() is not None):
         status.update(stage="error", message=status.get("message") or "학습 프로세스가 중단되었습니다.")
     files = [{"name": n, "size": (d / "out" / n).stat().st_size} for n in status.get("files", []) if (d / "out" / n).exists()]
-    return {**job, **status, "files": files}
+    adapter = chat_adapter(d, status)
+    if adapter and not busy():
+        CHAT.warm(adapter)  # load it before the phone's first message
+    imported = status.get("stage") == "done" and bool(status.get("llm"))
+    return {**job, **status, "files": files, "chat": adapter is not None or imported}
 
 
 def validate_jsonl(text: str) -> tuple[int, int]:
@@ -143,6 +273,10 @@ api.add_middleware(
 async def isolation_headers(request: Request, call_next):
     # The app needs CORS for cross-origin use and CORP so a cross-origin-isolated page may load files.
     response = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        # The app served from this PC (tunnel/LAN) is cross-origin isolated without the service-worker reload.
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
     response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -175,10 +309,7 @@ async def create_job(request: Request) -> dict:
         raise HTTPException(400, "모델 또는 에폭 값이 잘못되었습니다.")
     samples, replies = validate_jsonl(jsonl)
 
-    # Keep only the newest job on disk.
-    if JOBS.exists():
-        for old in JOBS.iterdir():
-            shutil.rmtree(old, ignore_errors=True)
+    reset_jobs()
     job_id = uuid.uuid4().hex
     d = JOBS / job_id
     (d / "out").mkdir(parents=True)
@@ -191,6 +322,44 @@ async def create_job(request: Request) -> dict:
     log = open(d / "train.log", "w")
     PROCS[job_id] = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     return job
+
+
+@api.post("/api/chat")
+async def chat(request: Request) -> dict:
+    """Reply generated on this PC by the newest PC-only model (the phone only sends the recent conversation)."""
+    authorize(request)
+    try:
+        req = json.loads(await request.body())
+        messages = [{"role": str(m["role"]), "content": str(m["content"])} for m in req["messages"]][-60:]
+        temperature = min(max(float(req.get("temperature", 0.8)), 0.1), 1.5)
+    except Exception:
+        raise HTTPException(400, "요청 형식이 잘못되었습니다.")
+    if not messages or any(m["role"] not in ("system", "user", "assistant") for m in messages) or sum(len(m["content"]) for m in messages) > 12000:
+        raise HTTPException(400, "대화 형식이 잘못되었습니다.")
+    if busy():
+        raise HTTPException(409, "PC가 학습 중이라 지금은 PC 답장을 쓸 수 없습니다.")
+    d = newest_job()
+    status = read_status(d) if d else {}
+    if status.get("stage") == "done" and status.get("llm"):
+        return {"reply": await asyncio.to_thread(llm_reply, messages, temperature)}
+    adapter = chat_adapter(d, status) if d else None
+    if adapter is None:
+        raise HTTPException(404, "PC에 PC 답장용 모델이 없습니다. 'Qwen3-4B · PC에서 답장'으로 먼저 학습하세요.")
+    CHAT.warm(adapter)
+    out = await asyncio.to_thread(CHAT.ask, {"messages": messages, "temperature": temperature, "max_tokens": 160}, 75)
+    if "error" in out:
+        raise HTTPException(500, f"답장을 만들지 못했습니다: {out['error']}")
+    return {"reply": out["reply"]}
+
+
+@api.get("/api/jobs/latest")
+def latest_job(request: Request) -> dict:
+    """The job on disk (only the newest is kept), so a phone can load a model trained from the PC itself."""
+    authorize(request)
+    d = newest_job()
+    if d is None:
+        raise HTTPException(404, "작업이 없습니다.")
+    return job_view(d)
 
 
 @api.get("/api/jobs/{job_id}")
@@ -219,6 +388,8 @@ def cancel_job(job_id: str, request: Request) -> dict:
 @api.delete("/api/jobs/{job_id}")
 def delete_job(job_id: str, request: Request) -> dict:
     cancel_job(job_id, request)
+    CHAT.stop()
+    (LLM_DIR / "lora.gguf").unlink(missing_ok=True)  # only the newest job exists, so its model is the one served
     shutil.rmtree(job_dir(job_id), ignore_errors=True)
     return {"deleted": job_id}
 
@@ -267,23 +438,112 @@ def qr_svg(text: str) -> str:
     return buf.getvalue().decode()
 
 
+def pairing_link(url: str) -> str:
+    """App address that connects to this PC when opened (server URL + token in the #fragment, never sent)."""
+    app = APP_URL or (f"{url}/" if WEB_DIR.is_dir() else "https://jshaa.github.io/Talk_AI/")
+    return f"{app}#trainer={quote(url, safe='')}&token={quote(TOKEN, safe='')}" if url else ""
+
+
+@pair.get("/link", response_class=PlainTextResponse)
+def share_link() -> str:
+    """Plain link for sharing without a QR scan, e.g. (iwr http://localhost:8001/link).Content | Set-Clipboard"""
+    link = pairing_link(public_url())
+    if not link:
+        raise HTTPException(503, "외부 주소(터널)를 아직 받지 못했습니다.")
+    return link
+
+
+@pair.post("/import")
+async def import_job(request: Request) -> dict:
+    """Adapter zip from train_pc_8b_colab.ipynb (this PC only): converted, then served by the `llm` service."""
+    if busy():
+        raise HTTPException(409, "학습 중에는 가져올 수 없습니다. 학습이 끝난 뒤 다시 해 주세요.")
+    DATA.mkdir(parents=True, exist_ok=True)
+    part, size = DATA / "import.zip.part", 0
+    try:
+        with open(part, "wb") as f:
+            async for chunk in request.stream():
+                size += len(chunk)
+                if size > MAX_IMPORT:
+                    raise HTTPException(413, "파일이 너무 큽니다.")
+                f.write(chunk)
+        meta = import_adapter.read_meta(part)
+    except ValueError as e:
+        part.unlink(missing_ok=True)
+        raise HTTPException(400, str(e))
+    except BaseException:
+        part.unlink(missing_ok=True)
+        raise
+    if busy():
+        part.unlink(missing_ok=True)
+        raise HTTPException(409, "학습 중에는 가져올 수 없습니다.")
+
+    reset_jobs()
+    job_id = uuid.uuid4().hex
+    d = JOBS / job_id
+    (d / "out").mkdir(parents=True)
+    os.replace(part, d / "adapter.zip")
+    num = lambda k: int(meta[k]) if isinstance(meta.get(k), int) else 0  # noqa: E731
+    job = {"id": job_id, "base": meta["base"], "persona": meta["persona"], "samples": num("samples"), "replies": num("replies"),
+           "created": time.time(), "imported": True}
+    (d / "job.json").write_text(json.dumps(job, ensure_ascii=False), encoding="utf-8")
+    cmd = [sys.executable, str(IMPORT_SCRIPT), "--zip", str(d / "adapter.zip"), "--out", str(d / "out"),
+           "--status", str(d / "status.json"), "--llm-dir", str(LLM_DIR), "--delete-zip"]
+    log = open(d / "import.log", "w")
+    PROCS[job_id] = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    return job
+
+
+@pair.get("/import/status")
+def import_status() -> dict:
+    """Progress line for the pairing page."""
+    d = newest_job()
+    if d is None:
+        return {"text": "", "final": True}
+    v = job_view(d)
+    if v.get("stage") == "error":
+        return {"text": f"실패: {v.get('message', '')}", "final": True}
+    if v.get("stage") != "done":
+        return {"text": f"{v.get('message') or '준비 중'}…", "final": False}
+    if v.get("llm") and not llm_ready():
+        return {"text": "PC가 8B 모델을 GPU에 올리는 중… (30초쯤)", "final": False}
+    return {"text": f"완료 · '{v.get('persona')}' 말투로 답장할 준비가 됐습니다. 휴대폰에서 연결 주소를 여세요.", "final": True}
+
+
+IMPORT_HTML = """<h2>Colab에서 학습한 8B 모델 가져오기</h2>
+<p><code>train_pc_8b_colab.ipynb</code>에서 받은 <code>persona-8b-….zip</code>을 고르면 이 PC의 GPU가 그 말투로 답장합니다(휴대폰 앱은 자동으로 "PC에서 답장").
+지금 PC에 있는 모델은 지워집니다.</p>
+<p><input type=file id=adapter accept=".zip"> <span id=imp class=small></span></p>
+<script>(()=>{const s=document.getElementById('imp');
+const poll=async()=>{try{const q=await (await fetch('/import/status')).json();s.textContent=q.text;if(!q.final)setTimeout(poll,2000)}catch{setTimeout(poll,3000)}};
+document.getElementById('adapter').onchange=async e=>{const f=e.target.files[0];if(!f)return;s.textContent='올리는 중…';
+const r=await fetch('/import',{method:'POST',body:f});const j=await r.json().catch(()=>({}));
+if(!r.ok){s.textContent='실패: '+(j.detail||r.status);return}poll()}})()</script>"""
+
+
 @pair.get("/", response_class=HTMLResponse)
 def pairing_page() -> str:
     url = public_url()
-    link = f"{APP_URL}#trainer={quote(url, safe='')}&token={quote(TOKEN, safe='')}" if url else ""
+    link = pairing_link(url)
     qr = qr_svg(link) if link else ""
     body = (
-        f"<p>휴대폰 카메라로 QR을 찍으면 말투 AI가 이 PC에 연결됩니다.</p><div class=qr>{qr}</div>"
-        f"<p class=small>주소: <code>{escape(url)}</code> · <a href=\"{escape(link)}\">이 PC에서 앱 열기</a></p>"
+        "<p>휴대폰에서 아래 <b>연결 주소</b>를 열면(카카오톡 나에게 보내기·메일 등으로 전달) 말투 AI가 이 PC에 연결됩니다. "
+        "Wi-Fi·LTE 등 어느 네트워크에서나 됩니다.</p>"
+        f"<p><input id=link readonly value=\"{escape(link)}\" onclick=\"this.select()\"> <button id=copy>주소 복사</button> <span id=copied class=small></span></p>"
+        f"<p class=small>또는 휴대폰 카메라로 QR 찍기:</p><div class=qr>{qr}</div>"
+        f"<p class=small>서버: <code>{escape(url)}</code> · <a href=\"{escape(link)}\">이 PC에서 앱 열기</a></p>"
+        "<script>document.getElementById('copy').onclick=async()=>{const i=document.getElementById('link');"
+        "try{await navigator.clipboard.writeText(i.value)}catch{i.select();document.execCommand('copy')}"
+        "document.getElementById('copied').textContent='복사됨'}</script>"
         if link
         else "<p>외부 주소(터널)를 아직 받지 못했습니다. 10초 뒤 새로고침하거나, 같은 Wi-Fi라면 아래 LAN 방식을 쓰세요.</p>"
     )
     return f"""<!doctype html><html lang=ko><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
 <title>말투 AI 학습 서버</title><style>body{{font:16px/1.6 system-ui,'Malgun Gothic',sans-serif;max-width:640px;margin:32px auto;padding:0 16px}}
-.qr svg{{width:280px;height:280px;background:#fff}}code{{background:#eee;padding:2px 6px;border-radius:4px;word-break:break-all}}.small{{font-size:13px;color:#555}}</style>
-<h1>말투 AI 학습 서버</h1><p>장치: <b>{escape(DEVICE)}</b></p>{body}
+#link{{width:100%;box-sizing:border-box;font:13px monospace;padding:8px}}.qr svg{{width:220px;height:220px;background:#fff}}code{{background:#eee;padding:2px 6px;border-radius:4px;word-break:break-all}}.small{{font-size:13px;color:#555}}</style>
+<h1>말투 AI 학습 서버</h1><p>장치: <b>{escape(DEVICE)}</b></p>{body}{IMPORT_HTML}
 <h2>같은 Wi-Fi(LAN)에서 쓰기</h2><p>휴대폰 브라우저로 <code>http://(이 PC의 IP):8000</code>을 열고, 앱 ② 탭 "내 PC로 학습"에 토큰을 입력하세요.<br>토큰: <code>{escape(TOKEN)}</code></p>
-<p class=small>이 페이지는 이 PC에서만 열립니다. 토큰은 학습 서버를 쓸 수 있는 비밀번호이니 다른 사람에게 보여 주지 마세요.</p></html>"""
+<p class=small>이 페이지는 이 PC에서만 열립니다. 연결 주소와 토큰은 학습 서버를 쓸 수 있는 비밀번호와 같으니 믿을 수 있는 사람에게만 보내세요. 터널을 다시 켜면 주소가 바뀝니다.</p></html>"""
 
 
 async def serve() -> None:

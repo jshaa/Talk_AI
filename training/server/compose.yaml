@@ -17,7 +17,27 @@ services:
     volumes:
       - trainer-data:/data     # token, base-model cache, newest job's GGUF
     environment:
-      APP_URL: https://jshaa.github.io/Talk_AI/
+      # empty = the QR opens the app served by this PC through the tunnel; or https://jshaa.github.io/Talk_AI/
+      APP_URL: ${APP_URL:-}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Replies of a persona imported from Colab (Qwen3-8B, too large to train on an 8 GB GPU): the official llama.cpp
+  # CUDA server runs the 4-bit base + LoRA (about 5.5 GB of VRAM) while /data/llm/lora.gguf exists. Idle otherwise.
+  llm:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:31b39eacce2bab5fde9286ec3980ed5548a3987644e94da0d0c2092f93313538
+    entrypoint: ["/bin/sh", "/llm.sh"]
+    healthcheck:
+      disable: true   # the image checks :8080, which is down while no adapter is imported
+    restart: unless-stopped
+    volumes:
+      - trainer-data:/data:ro
+      - ./llm.sh:/llm.sh:ro
     deploy:
       resources:
         reservations:

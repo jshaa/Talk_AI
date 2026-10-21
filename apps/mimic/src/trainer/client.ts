@@ -21,6 +21,8 @@ export interface TrainerJob {
   message?: string;
   device?: string;
   files: Array<{ name: string; size: number }>;
+  /** A PC-only model (qwen3-4b-pc): replies come from the PC through chatReply, nothing to download. */
+  chat?: boolean;
 }
 
 export interface TrainerHealth {
@@ -62,6 +64,17 @@ export const startJob = (cfg: TrainerConfig, jsonl: string, base: string, person
   call<TrainerJob>(cfg, '/api/jobs', { method: 'POST', body: JSON.stringify({ jsonl, base, persona }) }, f);
 
 export const getJob = (cfg: TrainerConfig, id: string, f?: typeof fetch) => call<TrainerJob>(cfg, `/api/jobs/${encodeURIComponent(id)}`, {}, f);
+
+/** The job kept on the PC (also one started from the PC itself, not from this phone). */
+export const latestJob = (cfg: TrainerConfig, f?: typeof fetch) => call<TrainerJob>(cfg, '/api/jobs/latest', {}, f);
+
+/** Reply generated on the PC by its PC-only model; only the recent conversation is sent. */
+export const chatReply = (
+  cfg: TrainerConfig,
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  temperature = 0.8,
+  f?: typeof fetch,
+) => call<{ reply: string }>(cfg, '/api/chat', { method: 'POST', body: JSON.stringify({ messages, temperature }) }, f);
 
 export const cancelJob = (cfg: TrainerConfig, id: string, f?: typeof fetch) =>
   call<TrainerJob>(cfg, `/api/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST' }, f);

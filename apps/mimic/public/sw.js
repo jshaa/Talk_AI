@@ -1,7 +1,7 @@
 // App-shell cache for offline use + COOP/COEP headers so static hosting (GitHub Pages) gets a
 // cross-origin isolated page, which multithreaded WebAssembly needs. Cross-origin requests (model
 // downloads) pass through untouched; this worker never sees or stores conversation content.
-const CACHE = 'mimic-shell-v1';
+const CACHE = 'mimic-shell-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
@@ -24,7 +24,10 @@ function isolate(response) {
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
-  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
+  const url = new URL(request.url);
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // App served by the PC trainer: its API and model files (GBs) are never cached here.
+  if (url.pathname.includes('/api/')) return;
   event.respondWith(
     (async () => {
       try {

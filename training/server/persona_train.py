@@ -17,6 +17,7 @@ import glob
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -47,7 +48,39 @@ MODELS = {
     "qwen2.5-3b": ("unsloth/Qwen2.5-3B-Instruct", "Qwen/Qwen2.5-3B-Instruct"),
     # Non-thinking Qwen3 (Apache-2.0): far better Korean and context than Qwen2.5 at a similar size.
     "qwen3-4b": ("unsloth/Qwen3-4B-Instruct-2507", "Qwen/Qwen3-4B-Instruct-2507"),
+    # Same model, but replies are generated on this PC (chat_worker.py) from the 4-bit base + the LoRA
+    # adapter: no merge/GGUF export, and a longer context than a phone browser can hold.
+    "qwen3-4b-pc": ("unsloth/Qwen3-4B-Instruct-2507", "Qwen/Qwen3-4B-Instruct-2507"),
+    # Trained on a 16 GB GPU (train_pc_8b_colab.ipynb); the PC imports the adapter and replies with llama.cpp.
+    "qwen3-8b-pc": ("unsloth/Qwen3-8B", "Qwen/Qwen3-8B"),
 }
+PC_ONLY = {"qwen3-4b-pc", "qwen3-8b-pc"}
+# (batch, gradient accumulation, max tokens) on the GPU: longer windows fit as two samples per step in 8 GB.
+GPU_BATCH = {"qwen3-4b-pc": (2, 8, 2560), "qwen3-8b-pc": (2, 8, 2560)}
+# Replies that are only an interjection ("어어엉", "ㅋㅋㅋ", "웅") dominate chat logs; training on all of them
+# teaches the model to answer everything that way. Most stay as context only; this share is still trained.
+BACKCHANNEL_KEEP = 3  # of every 10 occurrences of the same interjection
+_BACKCHANNEL = re.compile(
+    r"[\sㄱ-ㅎㅏ-ㅣ~!?.,…^;:ㅡ\-_()☀-➿\U0001f300-\U0001faff"
+    r"어엉응웅움음흠오옹우아앙으에엥이잉예넹네와왕헤히하호후흐헿힣핳크킄큭캬컄캭키끼꺄꺆ㅋㅎ]+"
+)
+
+
+def is_backchannel(text: str) -> bool:
+    """One line made only of interjection syllables, jamo, punctuation and emoji."""
+    t = text.strip()
+    return bool(t) and "\n" not in t and _BACKCHANNEL.fullmatch(t) is not None
+
+
+def format_tag(lines: int, asks: bool) -> str:
+    return f"[{min(max(lines, 1), 6)}줄{' 질문' if asks else ''}]"
+
+
+def reply_tag(text: str) -> str:
+    """Hidden hint before each reply of a PC model: how many messages it has and whether it asks something.
+    Context only in training; chat_worker.py writes a chosen tag to steer reply length and questions."""
+    return format_tag(sum(1 for line in text.split("\n") if line.strip()), "?" in text)
+
 # Small models lose noticeably more quality at 4-bit, so they get 6-bit (still ~0.5/1.3 GB).
 QUANT = {"qwen2.5-0.5b": "Q6_K", "qwen2.5-1.5b": "Q6_K"}
 TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
@@ -83,19 +116,61 @@ def read_samples(path: Path) -> list[list[dict]]:
     return samples
 
 
-def encode_sample(tokenize, messages: list[dict], max_len: int) -> dict | None:
-    """ChatML token ids with labels only on assistant content + <|im_end|> (what the model must produce)."""
-    ids: list[int] = []
-    labels: list[int] = []
-    for m in messages:
+def overlap_turns(prev: list[dict], cur: list[dict]) -> int:
+    """Turns at the start of `cur` that repeat the end of `prev` (the app's overlapping windows of one chat)."""
+    a, b = [m for m in prev if m["role"] != "system"], [m for m in cur if m["role"] != "system"]
+    for n in range(min(len(a), len(b)), 0, -1):
+        if a[-n:] == b[:n]:
+            return n
+    return 0
+
+
+def encode_sample(tokenize, messages: list[dict], max_len: int, context_turns: int = 0, context_only: frozenset[int] = frozenset(), tags: bool = False) -> dict | None:
+    """ChatML token ids with labels only on assistant content + <|im_end|> (what the model must produce).
+
+    The first `context_turns` non-system turns are context only: they were already trained, with more
+    context, at the end of the previous window; so are the non-system turns at the `context_only` indexes.
+    A sample over `max_len` loses its oldest turns (it still
+    starts on a user turn) instead of being dropped, so long conversations keep their latest context.
+    With `tags`, each reply starts with its untrained reply_tag line.
+    """
+    def piece(m: dict, trained: bool) -> tuple[list[int], list[int]]:
         head = tokenize(f"{IM_START}{m['role']}\n")
+        if tags and m["role"] == "assistant":
+            head += tokenize(f"{reply_tag(m['content'])}\n")
         body = tokenize(f"{m['content']}{IM_END}")
         tail = tokenize("\n")
-        ids += head + body + tail
-        labels += [-100] * len(head) + (body if m["role"] == "assistant" else [-100] * len(body)) + [-100] * len(tail)
-    if len(ids) > max_len or all(x == -100 for x in labels):
+        return head + body + tail, [-100] * len(head) + (body if trained else [-100] * len(body)) + [-100] * len(tail)
+
+    system = [piece(m, False) for m in messages if m["role"] == "system"]
+    turns = [piece(m, m["role"] == "assistant" and i >= context_turns and i not in context_only)
+             for i, m in enumerate(m for m in messages if m["role"] != "system")]
+    roles = [m["role"] for m in messages if m["role"] != "system"]
+    fixed = sum(len(ids) for ids, _ in system)
+    size = fixed + sum(len(ids) for ids, _ in turns)
+    while turns and (size > max_len or roles[0] != "user"):
+        size -= len(turns.pop(0)[0])
+        roles.pop(0)
+    ids = [t for p in system + turns for t in p[0]]
+    labels = [t for p in system + turns for t in p[1]]
+    if not turns or all(x == -100 for x in labels):
         return None
     return {"input_ids": ids, "attention_mask": [1] * len(ids), "labels": labels}
+
+
+def backchannel_context(samples: list[list[dict]], contexts: list[int], keep: int = BACKCHANNEL_KEEP) -> list[frozenset[int]]:
+    """Per sample, the turn indexes of interjection-only replies to use as context only (keep in 10 are trained)."""
+    seen: dict[str, int] = {}
+    out = []
+    for s, c in zip(samples, contexts):
+        skip = set()
+        for i, m in enumerate(m for m in s if m["role"] != "system"):
+            if i >= c and m["role"] == "assistant" and is_backchannel(m["content"]):
+                n = seen[m["content"]] = seen.get(m["content"], 0) + 1
+                if (n - 1) % 10 >= keep:
+                    skip.add(i)
+        out.append(frozenset(skip))
+    return out
 
 
 def auto_epochs(replies: int) -> int:
@@ -157,14 +232,17 @@ def train(args: argparse.Namespace, status: Status) -> list[str]:
     gpu_repo, cpu_repo = MODELS[args.base]
     out = Path(args.out)
     merged = out / "merged"
-    max_len = args.max_len or (1536 if gpu else 1024)
+    gpu_batch = GPU_BATCH.get(args.base, (4, 4, 1536))
+    max_len = args.max_len or (gpu_batch[2] if gpu else 1024)
     repo = gpu_repo if use_unsloth else (args.model_path or cpu_repo)
 
     status.update(stage="downloading", message=f"기본 모델 준비 중 ({repo})", device="cuda" if gpu else "cpu")
     if use_unsloth:
         from unsloth import FastLanguageModel
 
-        model, tokenizer = FastLanguageModel.from_pretrained(model_name=gpu_repo, max_seq_length=max_len, load_in_4bit=True)
+        # PC-only models are larger than 8 GB of VRAM: layers that do not fit stay in RAM and are streamed in.
+        offload = {"offload_layers": "auto"} if args.base in PC_ONLY else {}
+        model, tokenizer = FastLanguageModel.from_pretrained(model_name=gpu_repo, max_seq_length=max_len, load_in_4bit=True, **offload)
         model = FastLanguageModel.get_peft_model(
             model, r=16, lora_alpha=32, lora_dropout=0, target_modules=TARGET_MODULES,
             use_gradient_checkpointing="unsloth", random_state=3407,
@@ -194,14 +272,17 @@ def train(args: argparse.Namespace, status: Status) -> list[str]:
     if args.delete_data:
         data_path.unlink(missing_ok=True)  # server mode: the conversation text is no longer needed on disk
     tokenize = lambda s: tokenizer(s, add_special_tokens=False).input_ids  # noqa: E731
-    encoded = [e for e in (encode_sample(tokenize, s, max_len) for s in samples) if e is not None]
+    contexts = [0] + [overlap_turns(a, b) for a, b in zip(samples, samples[1:])]
+    skips = backchannel_context(samples, contexts)
+    encoded = [e for e in (encode_sample(tokenize, s, max_len, c, k, args.base in PC_ONLY) for s, c, k in zip(samples, contexts, skips)) if e is not None]
     if not encoded:
         raise RuntimeError("학습할 샘플이 없습니다(모두 너무 길거나 답장이 없음).")
-    replies = sum(1 for s in samples for m in s if m["role"] == "assistant")
+    # Each reply once: replies repeated as context in the next window are not counted again.
+    replies = sum(1 for s, c in zip(samples, contexts) for m in [m for m in s if m["role"] != "system"][c:] if m["role"] == "assistant")
     epochs = args.epochs or auto_epochs(replies)
-    batch, accum = (4, 4) if gpu else (2, 8)
+    batch, accum = gpu_batch[:2] if gpu else (2, 8)
     total = math.ceil(math.ceil(len(encoded) / batch) / accum) * epochs
-    status.update(stage="training", step=0, total=total, samples=len(encoded), dropped=len(samples) - len(encoded), replies=replies, epochs=epochs, message="학습 중")
+    status.update(stage="training", step=0, total=total, samples=len(encoded), dropped=len(samples) - len(encoded), replies=replies, context_only=sum(map(len, skips)), epochs=epochs, message="학습 중")
 
     class Progress(TrainerCallback):
         def on_log(self, a, state, control, logs=None, **kw):
@@ -239,6 +320,15 @@ def train(args: argparse.Namespace, status: Status) -> list[str]:
         ),
     )
     trainer.train()
+
+    if args.base in PC_ONLY:
+        # Replies come from this PC (chat_worker.py): keep the small LoRA adapter, skip merge and GGUF.
+        status.update(stage="merging", message="어댑터 저장 중")
+        model.save_pretrained(str(out / "adapter"))
+        tokenizer.save_pretrained(str(out / "adapter"))
+        shutil.rmtree(out / "checkpoints", ignore_errors=True)
+        status.update(adapter="adapter")
+        return []
 
     status.update(stage="merging", message="LoRA 병합 중")
     if use_unsloth:
