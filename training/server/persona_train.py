@@ -60,7 +60,7 @@ GPU_BATCH = {"qwen3-4b-pc": (2, 8, 2560)}
 BACKCHANNEL_KEEP = 3  # of every 10 occurrences of the same interjection
 _BACKCHANNEL = re.compile(
     r"[\sㄱ-ㅎㅏ-ㅣ~!?.,…^;:ㅡ\-_()☀-➿\U0001f300-\U0001faff"
-    r"어엉응웅움음흠오옹우아앙으에엥이잉예넹네와왕헤히하호후흐헿힣크킄큭캬키끼꺄꺆ㅋㅎ]+"
+    r"어엉응웅움음흠오옹우아앙으에엥이잉예넹네와왕헤히하호후흐헿힣핳크킄큭캬컄캭키끼꺄꺆ㅋㅎ]+"
 )
 
 
@@ -68,6 +68,17 @@ def is_backchannel(text: str) -> bool:
     """One line made only of interjection syllables, jamo, punctuation and emoji."""
     t = text.strip()
     return bool(t) and "\n" not in t and _BACKCHANNEL.fullmatch(t) is not None
+
+
+def format_tag(lines: int, asks: bool) -> str:
+    return f"[{min(max(lines, 1), 6)}줄{' 질문' if asks else ''}]"
+
+
+def reply_tag(text: str) -> str:
+    """Hidden hint before each reply of a PC model: how many messages it has and whether it asks something.
+    Context only in training; chat_worker.py writes a chosen tag to steer reply length and questions."""
+    return format_tag(sum(1 for line in text.split("\n") if line.strip()), "?" in text)
+
 # Small models lose noticeably more quality at 4-bit, so they get 6-bit (still ~0.5/1.3 GB).
 QUANT = {"qwen2.5-0.5b": "Q6_K", "qwen2.5-1.5b": "Q6_K"}
 TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
@@ -112,16 +123,19 @@ def overlap_turns(prev: list[dict], cur: list[dict]) -> int:
     return 0
 
 
-def encode_sample(tokenize, messages: list[dict], max_len: int, context_turns: int = 0, context_only: frozenset[int] = frozenset()) -> dict | None:
+def encode_sample(tokenize, messages: list[dict], max_len: int, context_turns: int = 0, context_only: frozenset[int] = frozenset(), tags: bool = False) -> dict | None:
     """ChatML token ids with labels only on assistant content + <|im_end|> (what the model must produce).
 
     The first `context_turns` non-system turns are context only: they were already trained, with more
     context, at the end of the previous window; so are the non-system turns at the `context_only` indexes.
     A sample over `max_len` loses its oldest turns (it still
     starts on a user turn) instead of being dropped, so long conversations keep their latest context.
+    With `tags`, each reply starts with its untrained reply_tag line.
     """
     def piece(m: dict, trained: bool) -> tuple[list[int], list[int]]:
         head = tokenize(f"{IM_START}{m['role']}\n")
+        if tags and m["role"] == "assistant":
+            head += tokenize(f"{reply_tag(m['content'])}\n")
         body = tokenize(f"{m['content']}{IM_END}")
         tail = tokenize("\n")
         return head + body + tail, [-100] * len(head) + (body if trained else [-100] * len(body)) + [-100] * len(tail)
@@ -258,7 +272,7 @@ def train(args: argparse.Namespace, status: Status) -> list[str]:
     tokenize = lambda s: tokenizer(s, add_special_tokens=False).input_ids  # noqa: E731
     contexts = [0] + [overlap_turns(a, b) for a, b in zip(samples, samples[1:])]
     skips = backchannel_context(samples, contexts)
-    encoded = [e for e in (encode_sample(tokenize, s, max_len, c, k) for s, c, k in zip(samples, contexts, skips)) if e is not None]
+    encoded = [e for e in (encode_sample(tokenize, s, max_len, c, k, args.base in PC_ONLY) for s, c, k in zip(samples, contexts, skips)) if e is not None]
     if not encoded:
         raise RuntimeError("학습할 샘플이 없습니다(모두 너무 길거나 답장이 없음).")
     # Each reply once: replies repeated as context in the next window are not counted again.

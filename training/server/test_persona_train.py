@@ -80,6 +80,16 @@ def test_interjection_only_replies_are_mostly_context():
     assert trained == fake_tokenize("운동가까아") + [2]
 
 
+def test_pc_models_see_an_untrained_reply_tag():
+    assert pt.reply_tag("응\n뭐해?") == "[2줄 질문]" and pt.reply_tag("ㅋㅋ") == "[1줄]" and pt.reply_tag("\n".join("a" * 9)) == "[6줄]"
+    msgs = [{"role": "system", "content": "S"}, {"role": "user", "content": "hi"}, {"role": "assistant", "content": "응\n뭐해?"}]
+    plain = pt.encode_sample(fake_tokenize, msgs, 1000)
+    tagged = pt.encode_sample(fake_tokenize, msgs, 1000, tags=True)
+    trained = lambda e: [t for t, l in zip(e["input_ids"], e["labels"]) if l != -100]  # noqa: E731
+    assert trained(tagged) == trained(plain)  # the tag is context only
+    assert len(tagged["input_ids"]) == len(plain["input_ids"]) + len(fake_tokenize("[2줄 질문]\n"))
+
+
 def test_auto_epochs():
     assert [pt.auto_epochs(n) for n in (100, 2000, 9000)] == [2, 2, 1]
 
