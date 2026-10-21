@@ -6,6 +6,7 @@ import { selectExamples, examplesBlock } from './persona/fewshot';
 import { systemPrompt } from './persona/systemPrompt';
 import { checkReply, BLOCKED_NOTICE } from './persona/safety';
 import { buildHistory, type Turn } from './persona/history';
+import { splitReply, typingDelay, TYPING } from './persona/pace';
 import { Engine } from './llm/engine';
 import { SAMPLE_EXPORT } from './sample';
 import * as trainer from './trainer/client';
@@ -19,6 +20,8 @@ const state = {
   displayName: '',
   turns: [] as Turn[],
   busy: null as AbortController | null,
+  /** Shows the rest of a reply that is still being revealed line by line. */
+  flushReply: null as (() => void) | null,
 };
 const engine = new Engine();
 
@@ -442,6 +445,31 @@ function bubble(role: 'user' | 'assistant', text: string, extra = ''): HTMLLIEle
   return li;
 }
 
+/** Reveals reply lines one at a time with a typing indicator between them. */
+function revealReply(lines: string[]): void {
+  const rest = [...lines];
+  let typing: HTMLLIElement | null = null;
+  let timer = 0;
+  const done = () => {
+    typing?.remove();
+    typing = null;
+    state.flushReply = null;
+  };
+  const next = () => {
+    typing?.remove();
+    bubble('assistant', rest.shift()!);
+    if (!rest.length) return done();
+    typing = bubble('assistant', TYPING, 'pending');
+    timer = window.setTimeout(next, typingDelay(rest[0]));
+  };
+  state.flushReply = () => {
+    clearTimeout(timer);
+    done();
+    rest.splice(0).forEach((l) => bubble('assistant', l));
+  };
+  next();
+}
+
 function setBusy(controller: AbortController | null): void {
   state.busy = controller;
   $('send').hidden = controller !== null;
@@ -461,11 +489,12 @@ $('composer').addEventListener('submit', async (e) => {
   if (!pc && !engine.loaded) return void bubble('assistant', '② 모델 탭에서 모델을 먼저 불러오세요.', 'system');
   if (mode() === 'fewshot' && !state.dataset) return void bubble('assistant', '"기본 모델 + 예시" 방식은 ① 대화 탭에서 말투 분석을 먼저 해야 합니다.', 'system');
 
+  state.flushReply?.(); // a new message while the last reply is still "typing": show the rest now
   input.value = '';
   bubble('user', text);
   state.turns.push({ role: 'user', content: text });
 
-  const live = bubble('assistant', '…', 'pending');
+  const live = bubble('assistant', TYPING, 'pending');
   const controller = new AbortController();
   setBusy(controller);
   // Fit a 2048-token phone context: a smaller prompt is retried once if the model reports an overflow.
@@ -484,9 +513,6 @@ $('composer').addEventListener('submit', async (e) => {
     const history = buildHistory(state.turns, (mode() === 'fewshot' ? 700 : 1200) * scale);
     return engine.chat([{ role: 'system', content: system }, ...history], {
       signal: controller.signal,
-      onToken: (t) => {
-        live.querySelector('.body')!.textContent = checkReply(t).blocked ? '…' : t;
-      },
     });
   };
   try {
@@ -498,12 +524,12 @@ $('composer').addEventListener('submit', async (e) => {
       reply = await attempt(0.3);
     }
     live.remove();
-    const clean = reply.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/ \/ /g, '\n').trim();
-    if (!clean) bubble('assistant', '(빈 답장)', 'system');
-    else if (checkReply(clean).blocked) bubble('assistant', BLOCKED_NOTICE, 'system');
+    const lines = splitReply(reply.replace(/<think>[\s\S]*?<\/think>/g, ''));
+    if (!lines.length) bubble('assistant', '(빈 답장)', 'system');
+    else if (checkReply(lines.join('\n')).blocked) bubble('assistant', BLOCKED_NOTICE, 'system');
     else {
-      clean.split('\n').filter((l) => l.trim()).forEach((l) => bubble('assistant', l.trim()));
-      state.turns.push({ role: 'assistant', content: clean });
+      state.turns.push({ role: 'assistant', content: lines.join('\n') });
+      revealReply(lines);
     }
   } catch (err) {
     live.remove();
@@ -523,6 +549,7 @@ $('input').addEventListener('keydown', (e) => {
 });
 $('stop').addEventListener('click', () => state.busy?.abort());
 $('clear').addEventListener('click', () => {
+  state.flushReply?.();
   state.turns = [];
   $('messages').replaceChildren();
 });
