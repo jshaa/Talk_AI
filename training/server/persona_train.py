@@ -52,7 +52,9 @@ MODELS = {
     # adapter: no merge/GGUF export, and a longer context than a phone browser can hold.
     "qwen3-4b-pc": ("unsloth/Qwen3-4B-Instruct-2507", "Qwen/Qwen3-4B-Instruct-2507"),
     # Trained on a 16 GB GPU (train_pc_8b_colab.ipynb); the PC imports the adapter and replies with llama.cpp.
-    "qwen3-8b-pc": ("unsloth/Qwen3-8B", "Qwen/Qwen3-8B"),
+    # The pre-quantized repo (7.5 GB) by name: "unsloth/Qwen3-8B" can resolve to the 16 GB original, whose
+    # on-the-fly 4-bit quantization exhausts free Colab's ~12.7 GB of RAM ("Loading weights … ^C").
+    "qwen3-8b-pc": ("unsloth/Qwen3-8B-unsloth-bnb-4bit", "Qwen/Qwen3-8B"),
 }
 PC_ONLY = {"qwen3-4b-pc", "qwen3-8b-pc"}
 # (batch, gradient accumulation, max tokens) on the GPU: longer windows fit as two samples per step in 8 GB.
