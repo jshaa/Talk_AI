@@ -229,8 +229,11 @@ def train(args: argparse.Namespace, status: Status) -> list[str]:
             import unsloth  # noqa: F401  (Linux/WSL2; on native Windows usually not installed)
 
             use_unsloth = True
-        except ImportError:
-            print("unsloth 없음: GPU에서 PEFT LoRA로 학습합니다(메모리를 더 씁니다).", flush=True)
+        except ImportError as e:
+            # The fallback loads the full 16-bit model: far too large for these (8B: 16 GB of RAM and VRAM).
+            if args.base in PC_ONLY:
+                raise RuntimeError(f"unsloth를 불러오지 못해 {args.base}를 학습할 수 없습니다: {e}") from e
+            print(f"unsloth 없음({e}): GPU에서 PEFT LoRA로 학습합니다(메모리를 더 씁니다).", flush=True)
     gpu_repo, cpu_repo = MODELS[args.base]
     out = Path(args.out)
     merged = out / "merged"
