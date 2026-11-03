@@ -52,7 +52,7 @@ Gate: line parse success ≥ 99 % on supported synthetic samples — **met (100 
 | 3.2 | Wizard step 4 (L4): keep / mask / exclude / delete per type and per finding, local preview of the LLM view, conservative defaults; purpose-specific redaction; schema v2 with masked search index and v1 migration — DD-020 | ✅ |
 | 3.3 | Optional ONNX Korean NER for third-party names (license review first) and a re-review flow for v1 / unreviewed datasets | ⬜ |
 
-Remaining Phase 3 scope: `PiiFinding` · L1 regex (checksums: RRN, Luhn) · L2 detector abstraction (participant dictionary + honorifics) · L3 interface · `PrivacyDecision` · `RedactionPolicy` (purpose-specific views) · Privacy Review UI · owner selection + participant attestation · `ConsentManifest` (MVP1 states).
+Remaining Phase 3 scope: 3.3 (ONNX NER, re-review flow) · `ConsentManifest` (MVP1 states; `TalkPro.Consent` currently holds only its DI entry point). PII detection, per-purpose redaction, the privacy review UI, owner selection and participant attestation are done (3.0–3.2).
 
 ## Phase 4 — Session / Analytics ✅ (DD-022)
 | # | Item | Status |
@@ -118,6 +118,8 @@ Integration, deletion, PII, parser and grounding regression evaluations · insta
 | P.3 | `training/prepare_kakao.py` (byte-identical to the app) + `train_persona_unsloth.ipynb` (Unsloth QLoRA → GGUF Q4_K_M, 512 MB splits) | ✅ |
 | P.4 | Capacitor Android shell with COOP/COEP, no backup; CI builds the debug APK and deploys Pages | ✅ |
 | P.7 | One-button fine-tuning on the owner's PC: Docker training server (GPU Unsloth / CPU PEFT → GGUF), QR pairing, Cloudflare quick tunnel, app upload/progress/auto-load (DD-029) | ✅ |
+| P.8 | Reply coherence tuning (DD-030): 4-turn window overlap, 1–2 epochs at 1e-4, Q6_K for ≤ 1.5B, Qwen3-4B-Instruct-2507 base, temperature 0.6 + min_p 0.05. Quality gain not yet measured | ✅ |
+| P.9 | PC reply mode (PR #7): `--base qwen3-4b-pc` keeps a LoRA adapter on the PC and answers through the tunnel (long context ≈ 3,000 chars, hidden length/question tags, best of 3 candidates); Colab Qwen3-8B training (`training/train_pc_8b_colab.ipynb`) imported into a llama.cpp `llm` service. See `PC_PHONE_QUICKSTART.md` 2-2·2-3 | ✅ |
 | P.5 | Real-phone checks: first token / tokens per second / RAM on one Android and one iPhone with Qwen2.5-1.5B fine-tune; blind "sounds like them" rating | ⬜ |
 | P.6 | Native llama.cpp on Android (faster than WebView) and an iOS app (needs a Mac, DD-014) | ⬜ |
 

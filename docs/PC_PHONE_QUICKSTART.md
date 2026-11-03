@@ -98,7 +98,7 @@ python training\server\submit.py 대화.txt --target "따라할 이름" --exclud
 
 - 가져오면 PC에 있던 이전 모델은 지워지고, 반대로 PC에서 새로 학습을 시작하면 8B 답장은 멈춥니다(GPU를 학습에 씀). PC에는 언제나 최근 모델 하나만 있습니다.
 - `llm` 서비스는 llama.cpp 공식 CUDA 이미지(`ghcr.io/ggml-org/llama.cpp:server-cuda`, 버전 고정)로 `docker compose up -d`에 함께 켜지고, 가져온 모델이 없으면 아무것도 하지 않습니다.
-- PR이 master에 합쳐지기 전이면 노트북 1번 셀의 `REPO_REF`를 `"pc-reply-trainer"`로 바꾸세요.
+- 노트북 1번 셀의 `REPO_REF`는 기본값 `"master"`를 그대로 두면 됩니다(PC 답장 기능은 PR #7로 2026-10-26 master에 병합됨).
 
 ## 3. VRAM 8GB PC에서 고를 모델
 

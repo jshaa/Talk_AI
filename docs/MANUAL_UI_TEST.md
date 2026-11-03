@@ -22,4 +22,4 @@ Automated coverage: ViewModel unit tests, real-component integration tests (pars
 9. Check `%LOCALAPPDATA%\TalkPro\vault\{id}` contains only `data.snapshot`, `dataset.meta` and, after 8d, `memory.index`, and `keys\{id}.key` exists.
 10. **모든 데이터 삭제** → **예** → the list is empty, and the key and vault folders are gone.
 
-Release builds show "지원하는 내보내기 형식이 아닙니다" for every file until real-format adapters exist (DD-019).
+Release builds register only real-format adapters: KakaoTalk PC exports (`kakao.pc.ko.v1`, DD-027) import normally, while synthetic samples (W1/A1/I1) and Android/iPhone exports show "지원하는 내보내기 형식이 아닙니다" (DD-019). Use a Debug build for the synthetic walkthrough above.
