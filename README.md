@@ -1,9 +1,24 @@
 # Talk_AI (TalkPro)
 
+[![mimic](https://github.com/jshaa/Talk_AI/actions/workflows/mimic.yml/badge.svg)](https://github.com/jshaa/Talk_AI/actions/workflows/mimic.yml)
+[![trainer](https://github.com/jshaa/Talk_AI/actions/workflows/trainer.yml/badge.svg)](https://github.com/jshaa/Talk_AI/actions/workflows/trainer.yml)
+
 카카오톡 대화 내보내기 파일로 **대화 분석 · 내 말투 답장 초안 · 근거 기반 기억 검색**을 제공하는 개인용 AI입니다.
 대화 원문은 사용자의 PC·휴대폰 밖으로 나가지 않는 **Local-first, Consent-first** 구조를 원칙으로 합니다.
 
 > 기획·법률 검토·아키텍처의 기준 문서는 [docs/Persona_AI_상용화_검토보고서.md](docs/Persona_AI_상용화_검토보고서.md)입니다.
+
+- **유형**: 개인 프로젝트 (기획 · 설계 · 구현 · 테스트)
+- **데모**: [말투 AI 웹앱 (GitHub Pages)](https://jshaa.github.io/Talk_AI/) — 합성 샘플 대화로 체험 가능
+
+## 문제와 해결
+
+| 문제 | 해결 |
+|---|---|
+| 대화 데이터는 상대방 개인정보·민감정보를 포함해 서버 처리 시 법적 위험이 큼 | 파싱부터 생성까지 전부 로컬 처리, 네트워크 API는 `TalkPro.Llm`에만 허용하고 아키텍처 테스트로 강제 |
+| 저장된 대화가 디스크에 평문·임시파일로 남을 위험 | 메모리 SQLite + 암호화 스냅샷(AES-256-GCM), 임시파일·사이드카 미생성 테스트, 삭제 시 키 파기 |
+| LLM이 기록에 없는 내용을 지어내는 문제 | 하이브리드 검색(임베딩 + BM25) 결과를 원문 카드로 제시, 근거 없으면 "기록에서 찾지 못했습니다" |
+| 휴대폰 메모리로는 학습 불가 | PC Docker 학습 서버(LoRA → GGUF)와 QR 연결, 결과 모델만 휴대폰으로 전달 |
 
 ## 핵심 원칙
 
@@ -23,6 +38,16 @@
 | 학습 서버 | `training/server` (Docker) | PC GPU로 LoRA 파인튜닝 → GGUF, QR 연결, PC에서 답장 | 진행 중 |
 
 자세한 진행 현황은 [docs/BACKLOG.md](docs/BACKLOG.md)를 참고하세요.
+
+## 기술 선택 이유
+
+| 선택 | 이유 | 근거 문서 |
+|---|---|---|
+| Ollama (loopback 전용) | 설치형 로컬 런타임으로 모델 교체가 쉽고, 루프백 IP만 허용해 외부 전송 차단 | DD-023 |
+| 메모리 SQLite + 암호화 스냅샷 | 유료·비공식 SQLCipher 대신 무료 SQLite로 FTS5 검색과 파일 암호화를 함께 확보, 임시파일 잔존 방지 | DD-007, DD-017 |
+| ONNX Runtime GenAI + Phi-4-mini (Android) | MIT 라이선스, 기기 안 추론, JSON 스키마 유도 출력 지원 | DD-026 |
+| wllama (GGUF, 브라우저) | iPhone 포함 브라우저에서 서버 없이 실행 | DD-028 |
+| 모델 허용목록 + 라이선스 등급 | 상용 재배포 불가 모델이 Release에 섞이지 않도록 빌드 단계에서 차단 | DD-023, DEPENDENCIES |
 
 ## 저장소 구조
 
@@ -83,6 +108,23 @@ npm run dev
 | [SYNTHETIC_FORMATS](docs/SYNTHETIC_FORMATS.md) | 테스트용 합성 형식(W1/A1/I1)과 인코딩 정책 |
 | [SECURITY_TESTS](docs/SECURITY_TESTS.md) | 자동·수동 보안 테스트 범위 |
 | [MANUAL_UI_TEST](docs/MANUAL_UI_TEST.md) | Debug 빌드 수동 UI 점검 |
+
+## 품질 · 테스트
+
+| 영역 | 테스트 | 실행 |
+|---|---|---|
+| .NET (`tests/`) | xUnit v3 테스트 약 400개 (Fact 337 · Theory 60): 파서 골든 파일, 암호화·삭제, PII 탐지, 아키텍처 의존성 규칙 | `dotnet test` (로컬, Windows) |
+| 말투 AI (`apps/mimic/tests`) | Vitest 5개 파일: 파싱, 학습 데이터 생성, TS↔Python 결과 일치 | CI `mimic` |
+| 학습 서버 (`training/`) | pytest 4개 파일: 전처리, 서버, 학습 스크립트 | CI `trainer` |
+
+측정 지표(합성 데이터 기준): 지원 형식 줄 파싱 성공률 100%, PII 탐지 재현율 ≥ 0.99 · 정밀도 ≥ 0.95 목표로 평가 세트 운영.
+
+## 한계
+
+- .NET 테스트는 아직 CI에 연결되지 않았습니다(Windows 전용 API 사용).
+- Android·iPhone 카톡 내보내기 형식은 Windows 앱에서 미지원입니다.
+- 답장 품질 개선(DD-030)의 효과는 실데이터로 측정하지 않았습니다.
+- 라이선스가 지정되지 않았습니다(기본적으로 모든 권리 보유).
 
 ## 지원 형식
 
